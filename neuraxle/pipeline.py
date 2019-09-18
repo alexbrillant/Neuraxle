@@ -235,15 +235,16 @@ class Pipeline(BasePipeline):
         """
         self.setup()
 
-        current_ids = self.hash(
-            current_ids=None,
-            hyperparameters=self.hyperparams,
-            data_inputs=data_inputs
-        )
-        data_container = DataContainer(current_ids=current_ids, data_inputs=data_inputs)
-        data_container = self._transform_core(data_container)
-
-        self.teardown()
+        try:
+            current_ids = self.hash(
+                current_ids=None,
+                hyperparameters=self.hyperparams,
+                data_inputs=data_inputs
+            )
+            data_container = DataContainer(current_ids=current_ids, data_inputs=data_inputs)
+            data_container = self._transform_core(data_container)
+        finally:
+            self.teardown()
 
         return data_container.data_inputs
 
@@ -257,19 +258,20 @@ class Pipeline(BasePipeline):
         """
         self.setup()
 
-        current_ids = self.hash(
-            current_ids=None,
-            hyperparameters=self.hyperparams,
-            data_inputs=data_inputs
-        )
-        data_container = DataContainer(
-            current_ids=current_ids,
-            data_inputs=data_inputs,
-            expected_outputs=expected_outputs
-        )
-        new_self, data_container = self._fit_transform_core(data_container)
-
-        self.teardown()
+        try:
+            current_ids = self.hash(
+                current_ids=None,
+                hyperparameters=self.hyperparams,
+                data_inputs=data_inputs
+            )
+            data_container = DataContainer(
+                current_ids=current_ids,
+                data_inputs=data_inputs,
+                expected_outputs=expected_outputs
+            )
+            new_self, data_container = self._fit_transform_core(data_container)
+        finally:
+            self.teardown()
 
         return new_self, data_container.data_inputs
 
@@ -283,19 +285,20 @@ class Pipeline(BasePipeline):
         """
         self.setup()
 
-        current_ids = self.hash(
-            current_ids=None,
-            hyperparameters=self.hyperparams,
-            data_inputs=data_inputs
-        )
-        data_container = DataContainer(
-            current_ids=current_ids,
-            data_inputs=data_inputs,
-            expected_outputs=expected_outputs
-        )
-        new_self, _ = self._fit_transform_core(data_container)
-
-        self.teardown()
+        try:
+            current_ids = self.hash(
+                current_ids=None,
+                hyperparameters=self.hyperparams,
+                data_inputs=data_inputs
+            )
+            data_container = DataContainer(
+                current_ids=current_ids,
+                data_inputs=data_inputs,
+                expected_outputs=expected_outputs
+            )
+            new_self, _ = self._fit_transform_core(data_container)
+        finally:
+            self.teardown()
 
         return new_self
 
