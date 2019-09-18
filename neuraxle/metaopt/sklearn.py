@@ -24,6 +24,9 @@ from neuraxle.base import MetaStepMixin, BaseStep
 
 
 class MetaSKLearnWrapper(MetaStepMixin, BaseStep):
+    """
+    Wrap a Sklearn meta estimator with a Neuraxle base step.
+    """
 
     def __init__(self, wrapped: 'MetaEstimatorMixin'):
         self.wrapped_sklearn_metaestimator = wrapped
@@ -31,10 +34,23 @@ class MetaSKLearnWrapper(MetaStepMixin, BaseStep):
         super().__init__()
 
     def fit(self, data_inputs, expected_outputs=None) -> 'BaseStep':
+        """
+        Fit the wrapped SkLearn meta estimator with the received data inputs and expected outputs
+
+        :param data_inputs:
+        :param expected_outputs:
+        :return: fitted self
+        """
         self.wrapped_sklearn_metaestimator = self.wrapped_sklearn_metaestimator.fit(data_inputs, expected_outputs)
         return self
 
     def transform(self, data_inputs):
+        """
+        Transform the data inputs with the wrapped SKLearn meta estimator `transform` method.
+
+        :param data_inputs:
+        :return: processed outputs
+        """
         return self.wrapped_sklearn_metaestimator.transform(data_inputs)
 
     def __repr__(self):

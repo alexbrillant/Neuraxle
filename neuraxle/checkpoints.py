@@ -25,8 +25,8 @@ DEFAULT_CACHE_FOLDER = os.path.join(os.getcwd(), 'cache')
 
 class BaseCheckpointStep(ResumableStepMixin, BaseStep):
     """
-    Base class for a checkpoint step that can persists the received data inputs, and expected_outputs
-    to eventually be able to load them using the checkpoint pipeline runner.
+    Base class for a checkpoint step that persists the received data inputs inside a checkpoint
+    that can be loaded by a `ResumablePipeline`.
     """
 
     def __init__(self, force_checkpoint_name: str = None):
@@ -35,14 +35,34 @@ class BaseCheckpointStep(ResumableStepMixin, BaseStep):
         self.force_checkpoint_name = force_checkpoint_name
 
     def setup(self, step_path: str, setup_arguments: dict):
+        """
+        Setup checkpoint path.
+
+        :param step_path:
+        :param setup_arguments:
+        :return:
+        """
         self.set_checkpoint_path(step_path)
 
     def handle_transform(self, data_container: DataContainer) -> DataContainer:
+        """
+        Save data container checkpoint, and pipeline.
+
+        :param data_container:
+        :return: data container
+        """
         data_container: DataContainer = self.save_checkpoint(data_container)
+
         self.save(data_container)
         return data_container
 
     def handle_fit_transform(self, data_container: DataContainer) -> ('BaseStep', DataContainer):
+        """
+        Save data container checkpoint, and pipeline.
+
+        :param data_container:
+        :return: self, data container
+        """
         data_container: DataContainer = self.save_checkpoint(data_container)
         self.save(data_container)
         return self, data_container
@@ -164,7 +184,7 @@ class PickleCheckpointStep(BaseCheckpointStep):
         Whether or not we should resume the pipeline (if the checkpoint exists)
 
         :param data_container: data to resume
-        :return:
+        :return: bool
         """
         return self._checkpoint_exists(data_container)
 
@@ -172,7 +192,7 @@ class PickleCheckpointStep(BaseCheckpointStep):
         """
         Returns True if the checkpoints for each data input id exists
         :param data_container:
-        :return:
+        :return: bool
         """
         for current_id, *_ in data_container:
             if not os.path.exists(self.get_checkpoint_file_path(current_id)):
@@ -185,7 +205,7 @@ class PickleCheckpointStep(BaseCheckpointStep):
         Returns the checkpoint file path for a data input id
 
         :param current_id:
-        :return:
+        :return: checkpoint file path
         """
         return os.path.join(
             self.checkpoint_path,

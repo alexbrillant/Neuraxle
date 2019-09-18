@@ -26,6 +26,9 @@ from neuraxle.base import NonFittableMixin, BaseStep
 
 
 class NumpyFlattenDatum(NonFittableMixin, BaseStep):
+    """
+    Numpy flatten operation using `.reshape(shape, -1)`.
+    """
     def __init__(self):
         BaseStep.__init__(self)
         NonFittableMixin.__init__(self)
@@ -45,6 +48,7 @@ class NumpyConcatenateOnCustomAxis(NonFittableMixin, BaseStep):
     def __init__(self, axis):
         """
         Create a numpy concatenate on custom axis object.
+
         :param axis: the axis where the concatenation is performed.
         :return: NumpyConcatenateOnCustomAxis instance.
         """
@@ -55,6 +59,7 @@ class NumpyConcatenateOnCustomAxis(NonFittableMixin, BaseStep):
     def transform(self, data_inputs):
         """
         Apply the concatenation transformation along the specified axis.
+
         :param data_inputs:
         :return: Numpy array
         """
@@ -63,6 +68,7 @@ class NumpyConcatenateOnCustomAxis(NonFittableMixin, BaseStep):
     def transform_one(self, data_inputs):
         """
         Apply the concatenation transformation along the specified axis
+
         :param data_inputs:
         :return: Numpy array
         """
@@ -70,6 +76,7 @@ class NumpyConcatenateOnCustomAxis(NonFittableMixin, BaseStep):
 
     def _concat(self, data_inputs):
         return np.concatenate(data_inputs, axis=self.axis)
+
 
 class NumpyConcatenateInnerFeatures(NumpyConcatenateOnCustomAxis):
     """
@@ -79,10 +86,12 @@ class NumpyConcatenateInnerFeatures(NumpyConcatenateOnCustomAxis):
     def __init__(self):
         """
         Create a numpy concatenate inner features object.
+
         :return: NumpyConcatenateOnCustomAxis instance.
         """
         # The concatenate is on the inner features so axis = -1.
         super().__init__(axis=-1)
+
 
 class NumpyConcatenateOuterBatch(NumpyConcatenateOnCustomAxis):
     """
@@ -92,17 +101,28 @@ class NumpyConcatenateOuterBatch(NumpyConcatenateOnCustomAxis):
     def __init__(self):
         """
         Create a numpy concetenate outer batch object.
+
         :return: NumpyConcatenateOnCustomAxis instance which is inherited by base step.
         """
         super().__init__(axis=0)
 
 
 class NumpyTranspose(NonFittableMixin, BaseStep):
+    """
+    Transposes Numpy operation using np `transpose` method.
+    """
+
     def __init__(self):
         BaseStep.__init__(self)
         NonFittableMixin.__init__(self)
 
     def transform(self, data_inputs):
+        """
+        Transposes the received data inputs using np `transpose` method.
+
+        :param data_inputs:
+        :return: transformed data inputs
+        """
         return self._transpose(data_inputs)
 
     def transform_one(self, data_input):
@@ -119,6 +139,9 @@ class NumpyTranspose(NonFittableMixin, BaseStep):
 
 
 class NumpyShapePrinter(NonFittableMixin, BaseStep):
+    """
+    Numpy shape printer of the passed data inputs
+    """
 
     def __init__(self, custom_message: str = ""):
         self.custom_message = custom_message
@@ -126,17 +149,41 @@ class NumpyShapePrinter(NonFittableMixin, BaseStep):
         NonFittableMixin.__init__(self)
 
     def transform(self, data_inputs):
+        """
+        Print the received data inputs np array shape
+
+        :param data_inputs:
+        :return:
+        """
         self._print(data_inputs)
         return data_inputs
 
     def transform_one(self, data_input):
+        """
+        Print the received data input np array shape
+
+        :param data_input:
+        :return:
+        """
         self._print_one(data_input)
 
     def inverse_transform(self, processed_outputs):
+        """
+        Print the received processed outputs np array shape
+
+        :param processed_outputs:
+        :return:
+        """
         self._print(processed_outputs)
         return processed_outputs
 
     def inverse_transform_one(self, processed_output):
+        """
+        Print the received processed output np array shape
+
+        :param processed_output:
+        :return:
+        """
         self._print_one(processed_output)
 
     def _print(self, data_inputs):

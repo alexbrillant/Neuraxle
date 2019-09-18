@@ -250,7 +250,7 @@ class Pipeline(BasePipeline):
 
     def fit_transform(self, data_inputs, expected_outputs=None) -> ('Pipeline', Any):
         """
-        After loading the last checkpoint, fit transform each pipeline steps
+        After loading the last checkpoint, fit transform each pipeline steps.
 
         :param data_inputs: the data input to fit on
         :param expected_outputs: the expected data output to fit on

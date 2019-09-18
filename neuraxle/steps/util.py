@@ -202,6 +202,13 @@ class TapeCallbackFunction:
 
 
 class StepClonerForEachDataInput(MetaStepMixin, BaseStep):
+    """
+    A class that clones a step for each data input.
+    This is useful for deeply nested data because it removes the needed for loops in the wrapped step code.
+    It simplifies the steps that don't need to be fitted.
+
+    Usage : `StepClonerForEachDataInput(LogarithmicValues())`
+    """
     def __init__(self, wrapped: BaseStep, copy_op=copy.deepcopy):
         # TODO: set params on wrapped.
         # TODO: use MetaStep*s*Mixin (plural) and review.

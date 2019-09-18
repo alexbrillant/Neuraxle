@@ -32,6 +32,11 @@ from neuraxle.union import ModelStacking
 
 
 class SKLearnWrapper(BaseStep):
+    """
+    A step to wrap SKLearn pipeline steps so that neuraxle can interact with SKLearn
+
+    Usage: ``Pipeline([..., SKLearnWrapper(PCA(n_components=2))])``
+    """
     def __init__(
             self,
             wrapped_sklearn_predictor,
@@ -46,6 +51,14 @@ class SKLearnWrapper(BaseStep):
         self.return_all_sklearn_default_params_on_get = return_all_sklearn_default_params_on_get
 
     def fit_transform(self, data_inputs, expected_outputs=None) -> ('BaseStep', Any):
+        """
+        Fit SKLearn predictor with the given data inputs and expected outputs,
+        then transform or predict the output with the given data inputs.
+
+        :param data_inputs:
+        :param expected_outputs:
+        :return: fitted self, transformed data_inputs
+        """
         self.wrapped_sklearn_predictor = self.wrapped_sklearn_predictor.fit(data_inputs, expected_outputs)
 
         if hasattr(self.wrapped_sklearn_predictor, 'predict'):
@@ -53,20 +66,45 @@ class SKLearnWrapper(BaseStep):
         return self, self.wrapped_sklearn_predictor.transform(data_inputs)
 
     def fit(self, data_inputs, expected_outputs=None) -> 'SKLearnWrapper':
+        """
+        Fit SKLearn predictor with the given data inputs and expected outputs.
+
+        :param data_inputs:
+        :param expected_outputs:
+        :return: fitted self
+        """
         self.wrapped_sklearn_predictor = self.wrapped_sklearn_predictor.fit(data_inputs, expected_outputs)
         return self
 
     def transform(self, data_inputs):
+        """
+        Predict or transform using the wrapped SKLearn predictor with the given data inputs.
+
+        :param data_inputs:
+        :return: transformed data inputs
+        """
         if hasattr(self.wrapped_sklearn_predictor, 'predict'):
             return self.wrapped_sklearn_predictor.predict(data_inputs)
         return self.wrapped_sklearn_predictor.transform(data_inputs)
 
     def set_hyperparams(self, flat_hyperparams: dict) -> BaseStep:
+        """
+        Set wrapped sklearn predictor params by passing the flat_hyperparams dict as arguments to
+        sklearn predictor `set_params` method.
+
+        :param flat_hyperparams:
+        :return:
+        """
         super().set_hyperparams(flat_hyperparams)
         self.wrapped_sklearn_predictor.set_params(**flat_hyperparams)
         return self
 
-    def get_hyperparams(self):
+    def get_hyperparams(self) -> dict:
+        """
+        Get wrapped sklearn predictor params with sklearn `get_params` method.
+
+        :return: hyperparams dict
+        """
         if self.return_all_sklearn_default_params_on_get:
             return self.wrapped_sklearn_predictor.get_params()
         else:
