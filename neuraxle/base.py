@@ -110,7 +110,7 @@ class BaseStep(ABC):
         if len(hyperparameters) == 0:
             return current_ids
 
-        current_hyperparameters_hash = self._hash_hyperparameters(hyperparameters)
+        current_hyperparameters_hash = self._hash_hyperparameters(HyperparameterSamples(hyperparameters))
 
         new_current_ids = []
         for current_id in current_ids:
