@@ -25,6 +25,7 @@ from abc import ABC, abstractmethod
 from copy import copy
 from typing import Any, Tuple
 
+import numpy as np
 from joblib import load, dump
 
 from neuraxle.base import BaseStep, TruncableSteps, NamedTupleList, ResumableStepMixin, DataContainer
@@ -59,6 +60,30 @@ class BasePipeline(TruncableSteps, ABC):
                                   "before having called the `.reverse()` or `reversed(.)` on it.")
 
         return self.inverse_transform_processed_outputs(processed_outputs)
+
+
+class Context:
+    def __init__(self, current_path, parent_path_stack, parent_step_stack, is_parent_saved_stack):
+        self.current_path = current_path
+        self.parent_path_stack = np.array(parent_path_stack)
+        self.parent_step_stack = np.array(parent_step_stack)
+        self.is_parent_saved_stack = np.array(is_parent_saved_stack)
+
+    def pop(self) -> 'Context':
+        return Context(
+            current_path=self.parent_path_stack[-1],
+            parent_path_stack=self.parent_path_stack[:-1],
+            parent_step_stack=self.parent_step_stack[:-1],
+            is_parent_saved_stack=self.is_parent_saved_stack[:-1]
+        )
+
+    def push(self, path, parent_path, parent_step, is_parent_saved=False) -> 'Context':
+        return Context(
+            current_path=path,
+            parent_path_stack=np.append(self.parent_path_stack, parent_path),
+            parent_step_stack=np.append(self.parent_step_stack, parent_step),
+            is_parent_saved_stack=np.append(self.is_parent_saved_stack, is_parent_saved)
+        )
 
 
 class PipelineSaver(ABC):
