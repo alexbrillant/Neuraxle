@@ -23,7 +23,7 @@ import os
 import pickle
 from abc import abstractmethod
 
-from neuraxle.base import ResumableStepMixin, BaseStep, DataContainer, ListDataContainer
+from neuraxle.base import ResumableStepMixin, BaseStep, DataContainer, ListDataContainer, Context
 
 DEFAULT_CACHE_FOLDER = os.path.join(os.getcwd(), 'cache')
 
@@ -42,14 +42,14 @@ class BaseCheckpointStep(ResumableStepMixin, BaseStep):
     def setup(self, step_path: str, setup_arguments: dict):
         self.set_checkpoint_path(step_path)
 
-    def handle_transform(self, data_container: DataContainer) -> DataContainer:
+    def handle_transform(self, data_container: DataContainer, context: Context) -> DataContainer:
         data_container: DataContainer = self.save_checkpoint(data_container)
-        self.save(data_container)
+        self.save(data_container, context)
         return data_container
 
-    def handle_fit_transform(self, data_container: DataContainer) -> ('BaseStep', DataContainer):
+    def handle_fit_transform(self, data_container: DataContainer, context: Context) -> ('BaseStep', DataContainer):
         data_container: DataContainer = self.save_checkpoint(data_container)
-        self.save(data_container)
+        self.save(data_container, context)
         return self, data_container
 
     def fit(self, data_inputs, expected_outputs=None) -> 'BaseCheckpointStep':

@@ -28,7 +28,7 @@ from neuraxle.base import NamedTupleList
 from neuraxle.checkpoints import BaseCheckpointStep
 from neuraxle.hyperparams.space import HyperparameterSamples
 from neuraxle.pipeline import Pipeline, ResumablePipeline
-from neuraxle.steps.util import TransformCallbackStep, TapeCallbackFunction, NullPipelineSaver
+from neuraxle.steps.util import TransformCallbackStep, TapeCallbackFunction, NullStepSaver
 from testing.test_resumable_pipeline import SomeCheckpointStep
 
 
@@ -228,7 +228,7 @@ def create_test_cases():
 
 @pytest.mark.parametrize("test_case", create_test_cases())
 def test_transform_should_rehash_hyperparameters_for_each_steps(test_case: ResumablePipelineTestCase):
-    pipeline = ResumablePipelineWithMockHasher(steps=test_case.steps, pipeline_saver=NullPipelineSaver())
+    pipeline = ResumablePipelineWithMockHasher(steps=test_case.steps, pipeline_saver=NullStepSaver())
 
     pipeline.transform(test_case.data_inputs)
 
@@ -239,7 +239,7 @@ def test_transform_should_rehash_hyperparameters_for_each_steps(test_case: Resum
 
 @pytest.mark.parametrize("test_case", create_test_cases())
 def test_fit_should_rehash_hyperparameters_for_each_steps(test_case: ResumablePipelineTestCase):
-    pipeline = ResumablePipelineWithMockHasher(steps=test_case.steps, pipeline_saver=NullPipelineSaver())
+    pipeline = ResumablePipelineWithMockHasher(steps=test_case.steps, pipeline_saver=NullStepSaver())
 
     pipeline.fit(test_case.data_inputs, test_case.expected_outputs)
 
@@ -250,7 +250,7 @@ def test_fit_should_rehash_hyperparameters_for_each_steps(test_case: ResumablePi
 
 @pytest.mark.parametrize("test_case", create_test_cases())
 def test_fit_transform_should_rehash_hyperparameters_for_each_steps(test_case: ResumablePipelineTestCase):
-    pipeline = ResumablePipelineWithMockHasher(steps=test_case.steps, pipeline_saver=NullPipelineSaver())
+    pipeline = ResumablePipelineWithMockHasher(steps=test_case.steps, pipeline_saver=NullStepSaver())
 
     pipeline.fit_transform(test_case.data_inputs, test_case.expected_outputs)
 

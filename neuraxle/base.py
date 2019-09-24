@@ -31,6 +31,44 @@ from typing import Tuple, List, Union, Any
 
 from neuraxle.hyperparams.space import HyperparameterSpace, HyperparameterSamples
 
+DEFAULT_CACHE_FOLDER = 'cache'
+
+
+class Context:
+    def __init__(self, current_path, parent_path_stack, parent_step_stack, is_parent_saved_stack=None):
+        self.current_path = current_path
+
+        if parent_path_stack is None:
+            parent_path_stack = []
+
+        if parent_step_stack is None:
+            parent_step_stack = []
+
+        self.parent_path_stack = parent_path_stack
+        self.parent_step_stack = parent_step_stack
+
+        if is_parent_saved_stack is None:
+            self.is_parent_saved_stack = [False] * len(parent_path_stack)
+        else:
+            self.is_parent_saved_stack = is_parent_saved_stack
+
+    def pop(self) -> 'Context':
+        return Context(
+            current_path=self.parent_path_stack[-1],
+            parent_path_stack=self.parent_path_stack[:-1],
+            parent_step_stack=self.parent_step_stack[:-1],
+            is_parent_saved_stack=self.is_parent_saved_stack[:-1]
+        )
+
+    def push(self, path, step) -> 'Context':
+        new_current_path = os.path.join(self.current_path, path)
+        return Context(
+            current_path=path,
+            parent_path_stack=self.parent_path_stack.append(new_current_path),
+            parent_step_stack=self.parent_step_stack.append(step),
+            is_parent_saved_stack=self.is_parent_saved_stack.append(False)
+        )
+
 
 class BaseHasher(ABC):
     @abstractmethod
@@ -121,7 +159,8 @@ class BaseStep(ABC):
             self,
             hyperparams: HyperparameterSamples = None,
             hyperparams_space: HyperparameterSpace = None,
-            name: str = None
+            name: str = None,
+            saver: 'StepSaver' = None
     ):
 
         if hyperparams is None:
@@ -141,9 +180,20 @@ class BaseStep(ABC):
 
         self.pending_mutate: ('BaseStep', str, str) = (None, None, None)
         self.is_initialized = False
-        self.parent_step = None
 
-    def hash(self, current_ids, hyperparameters, data_inputs: Any = None):
+        if saver is None:
+            self.saver = JoblibStepSaver(DEFAULT_CACHE_FOLDER)
+        else:
+            self.saver = saver
+
+    def hash(self, current_ids, hyperparameters, step_source_code: str, data_inputs: Any = None):
+        """
+        :param current_ids:
+        :param hyperparameters:
+        :param step_source_code:
+        :param data_inputs:
+        :return:
+        """
         if current_ids is None:
             current_ids = [str(i) for i in range(len(data_inputs))]
 
@@ -156,6 +206,7 @@ class BaseStep(ABC):
         for current_id in current_ids:
             m = hashlib.md5()
             m.update(str.encode(current_id))
+            m.update(str.encode(step_source_code))
             m.update(str.encode(current_hyperparameters_hash))
             new_current_ids.append(m.hexdigest())
 
@@ -165,11 +216,8 @@ class BaseStep(ABC):
         hyperperams_dict = hyperparams.to_flat_as_dict_primitive()
         return hashlib.md5(str.encode(str(hyperperams_dict))).hexdigest()
 
-    def set_parent(self, parent_step: 'BaseStep'):
-        self.parent_step = parent_step
-
-    def save(self, data_container: DataContainer):
-        self.parent_step.save(data_container)
+    def save(self, data_container: DataContainer, context: Context):
+        self.saver.save(self, data_container, context)
 
     def setup(self, step_path: str, setup_arguments: dict) -> 'BaseStep':
         """
@@ -223,33 +271,45 @@ class BaseStep(ABC):
     def get_hyperparams_space(self) -> HyperparameterSpace:
         return self.hyperparams_space
 
-    def handle_fit_transform(self, data_container: DataContainer) -> ('BaseStep', DataContainer):
+    def handle_fit_transform(self, data_container: DataContainer, context: Context) -> ('BaseStep', DataContainer):
         """
         Update the data inputs inside DataContainer after fit transform,
         and update its current_ids.
 
+        :param context: pipeline execution context
         :param data_container: the data container to transform
         :return: tuple(fitted pipeline, data_container)
         """
         new_self, out = self.fit_transform(data_container.data_inputs, data_container.expected_outputs)
         data_container.set_data_inputs(out)
 
-        current_ids = self.hash(data_container.current_ids, self.hyperparams, out)
+        current_ids = self.hash(
+            current_ids=data_container.current_ids,
+            hyperparameters=self.hyperparams,
+            step_source_code=inspect.getsource(self.__class__),
+            data_inputs=out
+        )
         data_container.set_current_ids(current_ids)
 
         return new_self, data_container
 
-    def handle_transform(self, data_container: DataContainer) -> DataContainer:
+    def handle_transform(self, data_container: DataContainer, context: Context) -> DataContainer:
         """
         Update the data inputs inside DataContainer after transform.
 
+        :param context: pipeline execution context
         :param data_container: the data container to transform
         :return: transformed data container
         """
         out = self.transform(data_container.data_inputs)
         data_container.set_data_inputs(out)
 
-        current_ids = self.hash(data_container.current_ids, self.hyperparams, out)
+        current_ids = self.hash(
+            current_ids=data_container.current_ids,
+            hyperparameters=self.hyperparams,
+            step_source_code=inspect.getsource(self.__class__),
+            data_inputs=out
+        )
         data_container.set_current_ids(current_ids)
 
         return data_container
@@ -464,8 +524,8 @@ class MetaStepMixin:
 
     # TODO: remove equal None, and fix random search at the same time ?
     def __init__(
-        self,
-        wrapped: BaseStep = None
+            self,
+            wrapped: BaseStep = None
     ):
         self.wrapped: BaseStep = wrapped
 
@@ -946,5 +1006,146 @@ class ResumableStepMixin:
     """
 
     @abstractmethod
-    def should_resume(self, data_container: DataContainer) -> bool:
+    def should_resume(self, data_container: DataContainer, context: Context) -> bool:
+        """
+        To know if we can resume or not a resumable step.
+
+        :param context: pipeline execution context
+        :param data_container: data container
+        :type data_container: DataContainer
+        :return bool
+        """
         raise NotImplementedError()
+
+
+class StepSaver(ABC):
+    @abstractmethod
+    def save(self, step: 'BaseStep', data_container: DataContainer, context: Context) -> 'Pipeline':
+        """
+        Persist pipeline for current data container
+
+        :param context:
+        :param step:
+        :param data_container:
+        :return:
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def has_saved(self, step: 'BaseStep', data_container: DataContainer, context: Context) -> bool:
+        """
+        Returns True if the pipeline can be loaded with the passed data container
+
+        :param context:
+        :param step:
+        :param data_container:
+        :return: pipeline
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def load(self, step: 'BaseStep', data_container: DataContainer, context: Context) -> 'Pipeline':
+        """
+        Load pipeline for current data container
+
+        :param context:
+        :param step:
+        :param data_container:
+        :return: pipeline
+        """
+        raise NotImplementedError()
+
+
+class JoblibStepSaver(StepSaver):
+    """
+    Pipeline Repository to persist and load pipeline based on a data container
+    """
+
+    def __init__(self, cache_folder, pipeline_cache_list_file_name='pipeline_cache_list.txt'):
+        self.pipeline_cache_list_file_name = pipeline_cache_list_file_name
+        self.cache_folder = cache_folder
+
+    def save(self, step: 'Pipeline', data_container: DataContainer, context: Context) -> 'Pipeline':
+        """
+        Persist pipeline for current data container
+
+        :param context:
+        :param step:
+        :param data_container:
+        :return:
+        """
+        pipeline_cache_folder = os.path.join(self.cache_folder, step.name)
+
+        if not os.path.exists(pipeline_cache_folder):
+            os.makedirs(pipeline_cache_folder)
+
+        next_cached_pipeline_path = self._create_cached_pipeline_path(pipeline_cache_folder, data_container)
+        dump(step, next_cached_pipeline_path)
+
+        return step
+
+    def has_saved(self, step: 'Pipeline', data_container: DataContainer, context: Context) -> bool:
+        """
+        Returns True if the pipeline can be loaded with the passed data container
+
+        :param context:
+        :param step:
+        :param data_container:
+        :return: pipeline
+        """
+        pipeline_cache_folder = os.path.join(self.cache_folder, step.name)
+
+        return os.path.exists(
+            self._create_cached_pipeline_path(
+                pipeline_cache_folder,
+                data_container
+            )
+        )
+
+    def load(self, step: 'Pipeline', data_container: DataContainer, context: Context) -> 'Pipeline':
+        """
+        Load pipeline for current data container.
+
+        :param context:
+        :param step:
+        :param data_container:
+        :return: pipeline
+        """
+        pipeline_cache_folder = os.path.join(self.cache_folder, step.name)
+
+        return load(
+            self._create_cached_pipeline_path(
+                pipeline_cache_folder,
+                data_container
+            )
+        )
+
+    def _create_cached_pipeline_path(self, pipeline_cache_folder, data_container: 'DataContainer') -> str:
+        """
+        Create cached pipeline path with data container, and pipeline cache folder.
+
+        :type data_container: DataContainer
+        :param pipeline_cache_folder: str
+
+        :return: path string
+        """
+        all_current_ids_hash = self._hash_data_container(data_container)
+        return os.path.join(pipeline_cache_folder, '{0}.joblib'.format(str(all_current_ids_hash)))
+
+    def _hash_data_container(self, data_container):
+        """
+        Hash data container current ids with md5.
+
+        :param data_container: data container
+        :type data_container: DataContainer
+
+        :return: str hexdigest of all of the current ids hashed together.
+        """
+        all_current_ids_hash = None
+        for current_id, *_ in data_container:
+            m = hashlib.md5()
+            m.update(str.encode(current_id))
+            if all_current_ids_hash is not None:
+                m.update(str.encode(all_current_ids_hash))
+            all_current_ids_hash = m.hexdigest()
+        return all_current_ids_hash

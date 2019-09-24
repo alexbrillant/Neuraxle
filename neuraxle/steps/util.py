@@ -24,8 +24,8 @@ import copy
 from abc import ABC
 from typing import List, Any
 
-from neuraxle.base import BaseStep, NonFittableMixin, NonTransformableMixin, MetaStepMixin, DataContainer
-from neuraxle.pipeline import PipelineSaver
+from neuraxle.base import BaseStep, NonFittableMixin, NonTransformableMixin, MetaStepMixin, DataContainer, StepSaver
+from neuraxle.pipeline import Context
 from neuraxle.hyperparams.space import HyperparameterSamples, HyperparameterSpace
 
 
@@ -255,22 +255,23 @@ class DataShuffler:
     pass  # TODO.
 
 
-class NullPipelineSaver(PipelineSaver):
-    def can_load(self, pipeline: 'Pipeline', data_container: DataContainer) -> bool:
+class NullStepSaver(StepSaver):
+    def has_saved(self, step: 'BaseStep', data_container: DataContainer, context: Context) -> bool:
         return True
 
-    def save(self, pipeline: 'Pipeline', data_container: DataContainer) -> 'Pipeline':
-        return pipeline
+    def save(self, step: 'BaseStep', data_container: DataContainer, context: Context) -> 'BaseStep':
+        return step
 
-    def load(self, pipeline: 'Pipeline', data_container: DataContainer) -> 'Pipeline':
-        return pipeline
+    def load(self, step: 'BaseStep', data_container: DataContainer, context: Context) -> 'BaseStep':
+        return step
+
 
 class OutputTransformerMixin:
     """
     Base output transformer step that can modify data inputs, and expected_outputs at the same time.
     """
 
-    def handle_transform(self, data_container: DataContainer) -> DataContainer:
+    def handle_transform(self, data_container: DataContainer, context: Context) -> DataContainer:
         """
         Handle transform by updating the data inputs, and expected outputs inside the data container.
 
@@ -288,7 +289,7 @@ class OutputTransformerMixin:
 
         return data_container
 
-    def handle_fit_transform(self, data_container: DataContainer) -> ('BaseStep', DataContainer):
+    def handle_fit_transform(self, data_container: DataContainer, context: Context) -> ('BaseStep', DataContainer):
         """
         Handle transform by fitting the step,
         and updating the data inputs, and expected outputs inside the data container.
@@ -298,6 +299,6 @@ class OutputTransformerMixin:
         """
         new_self = self.fit(data_container.data_inputs, data_container.expected_outputs)
 
-        data_container = self.handle_transform(data_container)
+        data_container = self.handle_transform(data_container, context)
 
         return new_self, data_container

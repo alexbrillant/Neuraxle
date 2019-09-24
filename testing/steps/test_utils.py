@@ -56,8 +56,5 @@ def test_step_cloner():
     sc = StepClonerForEachDataInput(TransformCallbackStep(tape, ["-"]), copy_op=copy.copy)
     sc.fit_transform(data)
 
-    print(tape)
-    print(tape.get_name_tape())
-    print(tape.get_data())
     assert tape.get_data() == data
     assert tape.get_name_tape() == ["-"] * 3
