@@ -52,6 +52,10 @@ class Context:
         else:
             self.is_parent_saved_stack = is_parent_saved_stack
 
+    @staticmethod
+    def from_step(step: 'BaseStep'):
+        return Context(current_path=step.name, parent_path_stack=[step.name], parent_step_stack=[step])
+
     def pop(self) -> 'Context':
         return Context(
             current_path=self.parent_path_stack[-1],

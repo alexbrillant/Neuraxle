@@ -19,6 +19,7 @@ This is the core of Neuraxle's pipelines. You can chain steps to call them one a
     limitations under the License.
 
 """
+import inspect
 from abc import ABC, abstractmethod
 from copy import copy
 from typing import Any, Tuple
@@ -84,11 +85,7 @@ class Pipeline(BasePipeline):
             data_inputs=data_inputs
         )
 
-        context = Context(
-            current_path=self.name,
-            parent_path_stack=[self.name],
-            parent_step_stack=[self]
-        )
+        context = Context.from_step(self)
 
         data_container = self._transform_core(data_container, context)
 
@@ -117,11 +114,7 @@ class Pipeline(BasePipeline):
             expected_outputs=expected_outputs
         )
 
-        context = Context(
-            current_path=self.name,
-            parent_path_stack=[self.name],
-            parent_step_stack=[self]
-        )
+        context = Context.from_step(self)
 
         new_self, data_container = self._fit_transform_core(data_container, context)
 
@@ -150,11 +143,7 @@ class Pipeline(BasePipeline):
             expected_outputs=expected_outputs
         )
 
-        context = Context(
-            current_path=self.name,
-            parent_path_stack=[self.name],
-            parent_step_stack=[self]
-        )
+        context = Context.from_step(self)
 
         new_self, _ = self._fit_transform_core(data_container, context)
 
@@ -304,7 +293,8 @@ class ResumablePipeline(Pipeline, ResumableStepMixin):
             current_ids = step.hash(
                 current_ids=current_data_container.current_ids,
                 hyperparameters=step.hyperparams,
-                data_inputs=current_data_container.data_inputs
+                data_inputs=current_data_container.data_inputs,
+                step_source_code=inspect.getsource(self.__class__),
             )
 
             current_data_container.set_current_ids(current_ids)
