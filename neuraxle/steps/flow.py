@@ -24,13 +24,14 @@ Pipeline wrapper steps that only implement the handle methods, and don't apply a
 
 """
 from neuraxle.base import MetaStepMixin, BaseStep, ExecutionContext, \
-    ForceHandleMixin
+    ForceHandleMixin, ResumableStepMixin
 from neuraxle.data_container import DataContainer, ExpandedDataContainer
 
 
 class ExpandDim(
     ForceHandleMixin,
     MetaStepMixin,
+    ResumableStepMixin,
     BaseStep
 ):
     """
@@ -137,3 +138,12 @@ class ExpandDim(
         expanded_data_container = ExpandedDataContainer.create_from(data_container)
 
         return expanded_data_container
+
+    def should_resume(self, data_container: DataContainer, context: ExecutionContext) -> bool:
+        expanded_data_container = self._create_expanded_data_container(data_container)
+        print('should_resume summary_id {0}'.format(expanded_data_container.summary_id))
+
+        if isinstance(self.wrapped, ResumableStepMixin) and \
+                self.wrapped.should_resume(expanded_data_container, context.push(self.wrapped)):
+            return True
+        return False

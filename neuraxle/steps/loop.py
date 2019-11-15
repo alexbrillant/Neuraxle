@@ -167,6 +167,9 @@ class ForEachDataInput(MetaStepMixin, BaseStep):
 
         return self, output_data_container
 
+    def hash_data_container(self, data_container):
+        return self.wrapped.hash_data_container(data_container)
+
 
 class StepClonerForEachDataInput(MetaStepMixin, BaseStep):
     def __init__(self, wrapped: BaseStep, copy_op=copy.deepcopy):

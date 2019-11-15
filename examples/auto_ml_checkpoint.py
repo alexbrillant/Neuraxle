@@ -35,6 +35,7 @@ from neuraxle.hyperparams.distributions import RandInt
 from neuraxle.hyperparams.space import HyperparameterSpace
 from neuraxle.metaopt.random import RandomSearch
 from neuraxle.pipeline import ResumablePipeline, DEFAULT_CACHE_FOLDER, Pipeline
+from neuraxle.steps.flow import ExpandDim
 from neuraxle.steps.loop import ForEachDataInput
 from neuraxle.steps.misc import Sleep
 from neuraxle.steps.numpy import MultiplyByN
@@ -60,33 +61,33 @@ def main(tmpdir, sleep_time: float = 0, n_iter: int = 10):
         ('multiplication_3', MultiplyByN()),
     ]).set_hyperparams_space(HYPERPARAMETER_SPACE)
 
-    time_a = time.time()
-    best_model = RandomSearch(
-        pipeline,
-        n_iter=n_iter,
-        higher_score_is_better=True
-    ).fit(DATA_INPUTS, EXPECTED_OUTPUTS)
-    outputs = best_model.transform(DATA_INPUTS)
-    time_b = time.time()
-
-    actual_score = mean_squared_error(EXPECTED_OUTPUTS, outputs)
-    print('{0} seconds'.format(time_b - time_a))
-    print('output: {0}'.format(outputs))
-    print('smallest mse: {0}'.format(actual_score))
-    print('best hyperparams: {0}'.format(pipeline.get_hyperparams()))
-
-    assert isinstance(actual_score, float)
-    assert isinstance(outputs, np.ndarray)
+    # time_a = time.time()
+    # best_model = RandomSearch(
+    #     pipeline,
+    #     n_iter=n_iter,
+    #     higher_score_is_better=True
+    # ).fit(DATA_INPUTS, EXPECTED_OUTPUTS)
+    # outputs = best_model.transform(DATA_INPUTS)
+    # time_b = time.time()
+    #
+    # actual_score = mean_squared_error(EXPECTED_OUTPUTS, outputs)
+    # print('{0} seconds'.format(time_b - time_a))
+    # print('output: {0}'.format(outputs))
+    # print('smallest mse: {0}'.format(actual_score))
+    # print('best hyperparams: {0}'.format(pipeline.get_hyperparams()))
+    #
+    # assert isinstance(actual_score, float)
+    # assert isinstance(outputs, np.ndarray)
 
     print('Resumable Pipeline:')
 
     pipeline = ResumablePipeline([
         ('multiplication_1', MultiplyByN()),
         ('sleep_1', ForEachDataInput(Sleep(sleep_time))),
-        DefaultCheckpoint(),
+        ExpandDim(DefaultCheckpoint()),
         ('multiplication_2', MultiplyByN()),
         ('sleep_2', ForEachDataInput(Sleep(sleep_time))),
-        DefaultCheckpoint(),
+        ExpandDim(DefaultCheckpoint()),
         ('multiplication_3', MultiplyByN())
     ], cache_folder=tmpdir).set_hyperparams_space(HYPERPARAMETER_SPACE)
 
@@ -111,4 +112,4 @@ def main(tmpdir, sleep_time: float = 0, n_iter: int = 10):
 
 
 if __name__ == "__main__":
-    main(DEFAULT_CACHE_FOLDER, sleep_time=0.01, n_iter=30)
+    main(DEFAULT_CACHE_FOLDER, sleep_time=0.01, n_iter=50)

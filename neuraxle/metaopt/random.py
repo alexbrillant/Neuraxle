@@ -343,6 +343,9 @@ class RandomSearch(MetaStepMixin, BaseStep):
             step = copy.copy(self.wrapped)
 
             new_hyperparams = step.get_hyperparams_space().rvs()
+            print('\n')
+            print(new_hyperparams)
+            print('\n')
             step.set_hyperparams(new_hyperparams)
 
             step: BaseCrossValidation = copy.copy(self.validation_technique).set_step(step)

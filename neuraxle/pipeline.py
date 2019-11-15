@@ -307,8 +307,7 @@ class ResumablePipeline(ResumableStepMixin, Pipeline):
         self.hyperparams = loaded_self.hyperparams
         self.hyperparams_space = loaded_self.hyperparams_space
 
-    def _get_starting_step_info(self, data_container: DataContainer, context: ExecutionContext) -> Tuple[
-        int, DataContainer]:
+    def _get_starting_step_info(self, data_container: DataContainer, context: ExecutionContext) -> Tuple[int, DataContainer]:
         """
         Find the index of the latest step that can be resumed
 
@@ -341,6 +340,7 @@ class ResumablePipeline(ResumableStepMixin, Pipeline):
         for index, (step_name, step) in enumerate(reversed(self.items())):
             sub_step_context = context.push(step)
             if isinstance(step, ResumableStepMixin) and step.should_resume(data_container, sub_step_context):
+                print('resuming pipeline')
                 return True
 
         return False
