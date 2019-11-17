@@ -4,7 +4,7 @@ import pytest
 from neuraxle.hyperparams.distributions import Boolean
 from neuraxle.hyperparams.space import HyperparameterSpace
 from neuraxle.pipeline import Pipeline
-from neuraxle.steps.flow import ChooseOneOrManyStepsOf, ChooseOneStepOf
+from neuraxle.steps.flow import ChooseOneStepOf, ChooseOneOrManyStepsOf
 from neuraxle.steps.misc import TransformCallbackStep, TapeCallbackFunction, FitTransformCallbackStep
 
 DATA_INPUTS = np.array(range(10))
