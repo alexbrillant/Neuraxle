@@ -18,10 +18,6 @@ This is the core of Neuraxle's pipelines. You can chain steps to call them one a
     See the License for the specific language governing permissions and
     limitations under the License.
 
-..
-    Thanks to Umaneo Technologies Inc. for their contributions to this Machine Learning
-    project, visit https://www.umaneo.com/ for more information on Umaneo Technologies Inc.
-
 """
 import shutil
 from abc import ABC, abstractmethod
@@ -134,6 +130,9 @@ class Pipeline(BasePipeline):
             processed_outputs = step.inverse_transform(processed_outputs)
         return processed_outputs
 
+    def fit_data_container(self, data_container: DataContainer) -> ('BaseStep', DataContainer):
+        return self.handle_fit(data_container, ExecutionContext.create_from_root(self, ExecutionMode.FIT, self.cache_folder))
+
     def handle_fit(self, data_container: DataContainer, context: ExecutionContext) -> (
             'BaseStep', DataContainer):
         """
@@ -150,6 +149,9 @@ class Pipeline(BasePipeline):
 
         return new_self, data_container
 
+    def fit_transform_data_container(self, data_container: DataContainer) -> ('BaseStep', DataContainer):
+        return self.handle_fit_transform(data_container, ExecutionContext.create_from_root(self, ExecutionMode.FIT_TRANSFORM, self.cache_folder))
+
     def handle_fit_transform(self, data_container: DataContainer, context: ExecutionContext) -> (
             'BaseStep', DataContainer):
         """
@@ -165,6 +167,9 @@ class Pipeline(BasePipeline):
         data_container.set_current_ids(ids)
 
         return new_self, data_container
+
+    def transform_data_container(self, data_container: DataContainer) -> ('BaseStep', DataContainer):
+        return self.handle_transform(data_container, ExecutionContext.create_from_root(self, ExecutionMode.TRANSFORM, self.cache_folder))
 
     def handle_transform(self, data_container: DataContainer, context: ExecutionContext) -> DataContainer:
         """

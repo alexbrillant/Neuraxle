@@ -18,15 +18,11 @@ Those steps works with NumPy (np) arrays.
     See the License for the specific language governing permissions and
     limitations under the License.
 
-..
-    Thanks to Umaneo Technologies Inc. for their contributions to this Machine Learning
-    project, visit https://www.umaneo.com/ for more information on Umaneo Technologies Inc.
-
 """
 
 import numpy as np
 
-from neuraxle.base import NonFittableMixin, BaseStep, DataContainer, ExecutionContext
+from neuraxle.base import NonFittableMixin, BaseStep
 from neuraxle.hyperparams.space import HyperparameterSamples
 
 
@@ -54,27 +50,6 @@ class NumpyConcatenateOnCustomAxis(NonFittableMixin, BaseStep):
         BaseStep.__init__(self)
         NonFittableMixin.__init__(self)
 
-    def handle_transform(self, data_containers, context: ExecutionContext) -> DataContainer:
-        """
-        Handle transform.
-
-        :param data_containers: the data container to join
-        :param context: execution context
-        :return: transformed data container
-        """
-        data_inputs = self.transform([dc.data_inputs for dc in data_containers])
-        data_container = DataContainer(
-            current_ids=data_containers[-1].current_ids,
-            data_inputs=data_inputs,
-            expected_outputs=data_containers[-1].expected_outputs
-        )
-        data_container.set_data_inputs(data_inputs)
-
-        current_ids = self.hash(data_container)
-        data_container.set_current_ids(current_ids)
-
-        return data_container
-
     def transform(self, data_inputs):
         """
         Apply the concatenation transformation along the specified axis.
@@ -89,7 +64,7 @@ class NumpyConcatenateOnCustomAxis(NonFittableMixin, BaseStep):
 
 class NumpyConcatenateInnerFeatures(NumpyConcatenateOnCustomAxis):
     """
-    Numpy concatenation step where the concatenation is performed along `axis=-1`.
+    Numpy concetenation step where the concatenation is performed along `axis=-1`.
     """
 
     def __init__(self):
@@ -108,7 +83,7 @@ class NumpyConcatenateOuterBatch(NumpyConcatenateOnCustomAxis):
 
     def __init__(self):
         """
-        Create a numpy concatenate outer batch object.
+        Create a numpy concetenate outer batch object.
         :return: NumpyConcatenateOnCustomAxis instance which is inherited by base step.
         """
         NumpyConcatenateOnCustomAxis.__init__(self, axis=0)
@@ -118,27 +93,6 @@ class NumpyTranspose(NonFittableMixin, BaseStep):
     def __init__(self):
         BaseStep.__init__(self)
         NonFittableMixin.__init__(self)
-
-    def handle_transform(self, data_containers, context: ExecutionContext) -> DataContainer:
-        """
-        Handle transform.
-
-        :param data_containers: the data container to join
-        :param context: execution context
-        :return: transformed data container
-        """
-        data_inputs = self.transform([dc.data_inputs for dc in data_containers])
-        data_container = DataContainer(
-            current_ids=data_containers[-1].current_ids,
-            data_inputs=data_inputs,
-            expected_outputs=data_containers[-1].expected_outputs
-        )
-        data_container.set_data_inputs(data_inputs)
-
-        current_ids = self.hash(data_container)
-        data_container.set_current_ids(current_ids)
-
-        return data_container
 
     def transform(self, data_inputs):
         return self._transpose(data_inputs)
@@ -202,8 +156,9 @@ class OneHotEncoder(NonFittableMixin, BaseStep):
     Rounds floats  to integer for safety in the transform.
     """
 
-    def __init__(self, nb_columns, name):
+    def __init__(self, nb_columns, name, npdtype=np.int32):
         super().__init__(name=name)
+        self.npdtype = npdtype
         self.nb_columns = nb_columns
 
     def transform(self, data_inputs):
@@ -222,9 +177,9 @@ class OneHotEncoder(NonFittableMixin, BaseStep):
         data_inputs[data_inputs < 0] = self.nb_columns
 
         # finally, one hot encode data inputs
-        outputs_ = np.eye(self.nb_columns + 1)[np.array(data_inputs, dtype=np.int32)]
+        outputs_ = np.eye(self.nb_columns + 1)[np.array(data_inputs, dtype=self.npdtype)]
 
         # delete the invalid values column, and zero hot the invalid values
         outputs_ = np.delete(outputs_, self.nb_columns, axis=-1)
 
-        return outputs_
+        return np.squeeze(outputs_)
