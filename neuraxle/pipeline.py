@@ -321,7 +321,7 @@ class ResumablePipeline(ResumableStepMixin, Pipeline):
 
         for index, (step_name, step) in enumerate(self.items()):
             sub_step_context = starting_step_context.push(step)
-            if isinstance(step, ResumableStepMixin) and step.should_resume(current_data_container, sub_step_context):
+            if isinstance(step, ResumableStepMixin) and step.should_resume(current_data_container.copy(), sub_step_context):
                 index_latest_checkpoint = index
                 starting_step_data_container = copy(current_data_container)
 

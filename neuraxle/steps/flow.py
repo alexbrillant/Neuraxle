@@ -97,9 +97,10 @@ class ExpandDim(
             context.push(self.wrapped)
         )
 
-        expanded_data_container = self.handle_after_any(expanded_data_container)
+        data_container = expanded_data_container.reduce_dim()
+        data_container = self.handle_after_any(data_container)
 
-        return self, expanded_data_container.reduce_dim()
+        return self, data_container
 
     def handle_fit(self, data_container: DataContainer, context: ExecutionContext):
         """
@@ -120,9 +121,10 @@ class ExpandDim(
             context.push(self.wrapped)
         )
 
-        expanded_data_container = self.handle_after_any(expanded_data_container)
+        data_container = expanded_data_container.reduce_dim()
+        data_container = self.handle_after_any(data_container)
 
-        return self, expanded_data_container.reduce_dim()
+        return self, data_container
 
     def _create_expanded_data_container(self, data_container: DataContainer) -> ExpandedDataContainer:
         """

@@ -146,6 +146,14 @@ class DataContainer:
                 expected_outputs=expected_outputs
             )
 
+    def copy(self):
+        return DataContainer(
+            summary_id=self.summary_id,
+            current_ids=self.current_ids,
+            data_inputs=self.data_inputs,
+            expected_outputs=self.data_inputs,
+        )
+
     def __iter__(self):
         """
         Iter method returns a zip of all of the current_ids, data_inputs, and expected_outputs in the data container.

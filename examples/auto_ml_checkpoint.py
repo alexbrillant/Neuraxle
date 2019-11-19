@@ -42,13 +42,13 @@ from neuraxle.steps.numpy import MultiplyByN
 
 
 def main(tmpdir, sleep_time: float = 0, n_iter: int = 10):
-    DATA_INPUTS = np.array(range(10))
-    EXPECTED_OUTPUTS = np.array(range(10, 20))
+    DATA_INPUTS = np.array(range(2))
+    EXPECTED_OUTPUTS = np.array(range(2, 4))
 
     HYPERPARAMETER_SPACE = HyperparameterSpace({
-        'multiplication_1__multiply_by': RandInt(1, 2),
-        'multiplication_2__multiply_by': RandInt(1, 2),
-        'multiplication_3__multiply_by': RandInt(1, 2),
+        'multiplication_1__multiply_by': RandInt(1, 1)
+        # 'multiplication_2__multiply_by': RandInt(1, 2),
+        # 'multiplication_3__multiply_by': RandInt(1, 2),
     })
 
     print('Classic Pipeline:')
@@ -84,11 +84,11 @@ def main(tmpdir, sleep_time: float = 0, n_iter: int = 10):
     pipeline = ResumablePipeline([
         ('multiplication_1', MultiplyByN()),
         ('sleep_1', ForEachDataInput(Sleep(sleep_time))),
-        ExpandDim(DefaultCheckpoint()),
-        ('multiplication_2', MultiplyByN()),
-        ('sleep_2', ForEachDataInput(Sleep(sleep_time))),
-        ExpandDim(DefaultCheckpoint()),
-        ('multiplication_3', MultiplyByN())
+        ExpandDim(DefaultCheckpoint())
+        # ('multiplication_2', MultiplyByN()),
+        # ('sleep_2', ForEachDataInput(Sleep(sleep_time))),
+        # ExpandDim(DefaultCheckpoint()),
+        # ('multiplication_3', MultiplyByN())
     ], cache_folder=tmpdir).set_hyperparams_space(HYPERPARAMETER_SPACE)
 
     time_a = time.time()
@@ -112,4 +112,4 @@ def main(tmpdir, sleep_time: float = 0, n_iter: int = 10):
 
 
 if __name__ == "__main__":
-    main(DEFAULT_CACHE_FOLDER, sleep_time=0.01, n_iter=50)
+    main(DEFAULT_CACHE_FOLDER, sleep_time=0.01, n_iter=10)
