@@ -60,6 +60,9 @@ class JSONDataResponseEncoder(NonFittableMixin, BaseStep, ABC):
         :return: flask response object
         """
         from flask import jsonify
+        if isinstance(data_inputs, np.ndarray):
+            data_inputs = data_inputs.tolist()
+
         return jsonify(self.encode(data_inputs))
 
     @abstractmethod
