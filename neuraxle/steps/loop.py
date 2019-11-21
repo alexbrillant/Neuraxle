@@ -163,6 +163,7 @@ class ForEachDataInput(MetaStepMixin, BaseStep):
                 output.expected_outputs
             )
 
+        output_data_container.set_summary_id(data_container.summary_id)
         output_data_container = self.handle_after_any(output_data_container)
 
         return self, output_data_container

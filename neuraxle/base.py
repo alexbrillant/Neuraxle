@@ -580,6 +580,11 @@ class BaseStep(ABC):
 
         return summary_id
 
+    # ResumablePipeline
+    # MultiplyByN()
+    # ForEachDataInput(Sleep(sleep_time)))
+    # ExpandDim(DefaultCheckpoint())
+
     def hash(self, data_container: DataContainer) -> List[str]:
         """
         Hash data inputs, current ids, and hyperparameters together using self.hashers.
@@ -892,6 +897,25 @@ class BaseStep(ABC):
         data_container.set_summary_id(summary_id)
 
         return data_container
+
+    # ResumablePipeline
+    # 'DataContainer(current_ids=[\\'0\\', \\'1\\'], summary_id=\\'f90d89f61611cc0c196b1c6ba2d261ed\\''
+    # multiplication_1
+    # 'DataContainer(current_ids=[\\'da586bfe8c130f65065a85945a18c476\\', \\'6e1742efad027f7c048c0a64fa7c4d6a\\'], summary_id=\\'8aea47fbe2d510b152b803272bc769a5\\''
+    # Sleep
+    # 'DataContainer(current_ids=[\\'da586bfe8c130f65065a85945a18c476\\', \\'6e1742efad027f7c048c0a64fa7c4d6a\\'], summary_id=\\'2f73dd2f1946bee1cbf227d574a416e2\\''
+    # ExpandDim
+    # 'DataContainer(current_ids=[\\'da586bfe8c130f65065a85945a18c476\\', \\'6e1742efad027f7c048c0a64fa7c4d6a\\'], summary_id=\\'012ff37ef303b54dbf80779d1d00510f\\''
+    # multiplication_1
+    # 'DataContainer(current_ids=[\\'da586bfe8c130f65065a85945a18c476\\', \\'6e1742efad027f7c048c0a64fa7c4d6a\\'], summary_id=\\'8aea47fbe2d510b152b803272bc769a5\\''
+    # Sleep
+    # 'DataContainer(current_ids=[\\'0\\'], summary_id=\\'3e4ff996bf2d1f8a932f28ddf77ec46b\\'
+    # Sleep
+    # 'ListDataContainer(current_ids=[\\'da586bfe8c130f65065a85945a18c476\\', \\'6e1742efad027f7c048c0a64fa7c4d6a\\'], summary_id=\\'961e5a873c44bb246de2dc7d84e5490c\\''
+    # ExpandDim
+    # 'ListDataContainer(current_ids=[\\'da586bfe8c130f65065a85945a18c476\\', \\'6e1742efad027f7c048c0a64fa7c4d6a\\'], summary_id=\\'bbb1cd9c126e38578a1e0c796590bd42\\''
+    # ExpandDim
+    # 'DataContainer(current_ids=[\\'da586bfe8c130f65065a85945a18c476\\', \\'6e1742efad027f7c048c0a64fa7c4d6a\\'], summary_id=\\'57b731783bf9efa101ca9c8b0b651786\\''
 
     def fit_transform(self, data_inputs, expected_outputs=None) -> ('BaseStep', Any):
         """
@@ -1450,6 +1474,11 @@ class MetaStepMixin:
 
     def get_best_model(self) -> BaseStep:
         return self.best_model
+
+    def should_resume(self, data_container: DataContainer, context: ExecutionContext):
+        if isinstance(self.wrapped, ResumableStepMixin) and self.wrapped.should_resume(data_container, context.push(self.wrapped)):
+            return True
+        return False
 
     def __repr__(self):
         output = self.__class__.__name__ + "(\n\twrapped=" + repr(
