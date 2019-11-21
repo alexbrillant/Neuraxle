@@ -125,7 +125,7 @@ class ColumnTransformer(FeatureUnion):
         :class:`FeatureUnion`,
     """
 
-    def __init__(self, column_chooser_steps_as_tuple: ColumnChooserTupleList, n_dimension: int = 3):
+    def __init__(self, column_chooser_steps_as_tuple: ColumnChooserTupleList, n_dimension: int = 3, joiner=None):
         # Make unique names from the indices in case we have many steps for transforming the same column(s).
         self.string_indices = [
             str(name) + "_" + str(step.__class__.__name__)
@@ -138,4 +138,4 @@ class ColumnTransformer(FeatureUnion):
                 step
             ]))
             for string_indices, (indices, step) in zip(self.string_indices, column_chooser_steps_as_tuple)
-        ])
+        ], joiner=joiner)

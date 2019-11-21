@@ -29,7 +29,8 @@ from typing import Any, Iterable, List
 
 from conv import convolved_1d
 
-from neuraxle.base import TruncableSteps, BaseStep, ExecutionContext, NonFittableMixin
+from neuraxle.base import BaseStep, ExecutionContext, NonFittableMixin
+from neuraxle.steps.column_transformer import ColumnTransformer
 from neuraxle.steps.flow import ForceMustHandleMixin
 from neuraxle.union import FeatureUnion
 
@@ -264,10 +265,11 @@ class ListDataContainer(DataContainer):
 
 
 class FixedHeaderJoiner(NonFittableMixin, BaseStep):
-    pass
+    def transform(self, data_inputs):
+        pass
 
 
-class ZipData(ForceMustHandleMixin, FeatureUnion):
+class ZipData(ForceMustHandleMixin, ColumnTransformer):
     def __init__(
             self,
             headers_data_loading_step: BaseStep,
@@ -275,9 +277,9 @@ class ZipData(ForceMustHandleMixin, FeatureUnion):
     ):
         ForceMustHandleMixin.__init__(self)
         BaseStep.__init__(self)
-        FeatureUnion.__init__(self, [
-            headers_data_loading_step,
-            data_inputs_data_loading_step
+        ColumnTransformer.__init__(self, [
+            (0, headers_data_loading_step),
+            (1, data_inputs_data_loading_step)
         ], joiner=FixedHeaderJoiner())
 
     def handle_fit(self, data_container: DataContainer, context: ExecutionContext) -> ('BaseStep', DataContainer):
@@ -292,14 +294,20 @@ class ZipData(ForceMustHandleMixin, FeatureUnion):
 
 
 class ZipDataContainer(DataContainer):
-    def __init__(self, current_ids, data_inputs, expected_outputs, headers):
+    def __init__(
+        self,
+        current_ids,
+        data_inputs,
+        expected_outputs,
+        header
+    ):
         DataContainer.__init__(
             self,
             current_ids,
             data_inputs,
             expected_outputs
         )
-        self.headers = headers
+        self.header = header
 
     def __iter__(self):
         """
@@ -316,5 +324,5 @@ class ZipDataContainer(DataContainer):
         if self.expected_outputs is None:
             expected_outputs = [None] * len(self.data_inputs)
 
-        data_inputs_iterator = zip(repeat(self.headers, len(self.data_inputs)), self.data_inputs)
+        data_inputs_iterator = zip(repeat(self.header, len(self.data_inputs)), self.data_inputs)
         return zip(current_ids, data_inputs_iterator, expected_outputs)
