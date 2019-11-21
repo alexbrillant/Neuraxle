@@ -24,9 +24,14 @@ Classes for containing the data that flows throught the pipeline steps.
 
 """
 import hashlib
+from itertools import repeat
 from typing import Any, Iterable, List
 
 from conv import convolved_1d
+
+from neuraxle.base import TruncableSteps, BaseStep, ExecutionContext, NonFittableMixin
+from neuraxle.steps.flow import ForceMustHandleMixin
+from neuraxle.union import FeatureUnion
 
 
 class DataContainer:
@@ -113,9 +118,12 @@ class DataContainer:
         .. seealso::
             `<https://github.com/guillaume-chevalier/python-conv-lib>`_
         """
-        conv_current_ids = convolved_1d(stride=stride, iterable=self.current_ids, kernel_size=kernel_size, include_incomplete_pass=True)
-        conv_data_inputs = convolved_1d(stride=stride, iterable=self.data_inputs, kernel_size=kernel_size, include_incomplete_pass=True)
-        conv_expected_outputs = convolved_1d(stride=stride, iterable=self.expected_outputs, kernel_size=kernel_size, include_incomplete_pass=True)
+        conv_current_ids = convolved_1d(stride=stride, iterable=self.current_ids, kernel_size=kernel_size,
+                                        include_incomplete_pass=True)
+        conv_data_inputs = convolved_1d(stride=stride, iterable=self.data_inputs, kernel_size=kernel_size,
+                                        include_incomplete_pass=True)
+        conv_expected_outputs = convolved_1d(stride=stride, iterable=self.expected_outputs, kernel_size=kernel_size,
+                                             include_incomplete_pass=True)
 
         for current_ids, data_inputs, expected_outputs in zip(conv_current_ids, conv_data_inputs,
                                                               conv_expected_outputs):
@@ -253,3 +261,60 @@ class ListDataContainer(DataContainer):
         self.current_ids.extend(data_container.current_ids)
         self.data_inputs.extend(data_container.data_inputs)
         self.expected_outputs.extend(data_container.expected_outputs)
+
+
+class FixedHeaderJoiner(NonFittableMixin, BaseStep):
+    pass
+
+
+class ZipData(ForceMustHandleMixin, FeatureUnion):
+    def __init__(
+            self,
+            headers_data_loading_step: BaseStep,
+            data_inputs_data_loading_step: BaseStep
+    ):
+        ForceMustHandleMixin.__init__(self)
+        BaseStep.__init__(self)
+        FeatureUnion.__init__(self, [
+            headers_data_loading_step,
+            data_inputs_data_loading_step
+        ], joiner=FixedHeaderJoiner())
+
+    def handle_fit(self, data_container: DataContainer, context: ExecutionContext) -> ('BaseStep', DataContainer):
+        raise NotImplementedError('Must implement handle_fit in {0}'.format(self.name))
+
+    def handle_transform(self, data_container: DataContainer, context: ExecutionContext) -> DataContainer:
+        raise NotImplementedError('Must implement handle_transform in {0}'.format(self.name))
+
+    def handle_fit_transform(self, data_container: DataContainer, context: ExecutionContext) -> (
+            'BaseStep', DataContainer):
+        raise NotImplementedError('Must implement handle_fit_transform in {0}'.format(self.name))
+
+
+class ZipDataContainer(DataContainer):
+    def __init__(self, current_ids, data_inputs, expected_outputs, headers):
+        DataContainer.__init__(
+            self,
+            current_ids,
+            data_inputs,
+            expected_outputs
+        )
+        self.headers = headers
+
+    def __iter__(self):
+        """
+        Iter method returns a zip of all of the current_ids, data_inputs, and expected_outputs in the data container.
+
+        :return: iterator of tuples containing current_ids, data_inputs, and expected outputs
+        :rtype: Iterator[Tuple]
+        """
+        current_ids = self.current_ids
+        if self.current_ids is None:
+            current_ids = [None] * len(self.data_inputs)
+
+        expected_outputs = self.expected_outputs
+        if self.expected_outputs is None:
+            expected_outputs = [None] * len(self.data_inputs)
+
+        data_inputs_iterator = zip(repeat(self.headers, len(self.data_inputs)), self.data_inputs)
+        return zip(current_ids, data_inputs_iterator, expected_outputs)
