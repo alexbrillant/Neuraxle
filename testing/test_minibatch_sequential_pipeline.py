@@ -65,11 +65,11 @@ def test_mini_batch_sequential_pipeline_should_fit_transform_steps_sequentially_
     p = MiniBatchSequentialPipeline([
         MultiplyBy2FitTransformCallbackStep(tape1, tape1_fit, ["1"]),
         MultiplyBy2FitTransformCallbackStep(tape2, tape2_fit, ["2"]),
-        Joiner(batch_size=10),
+        Joiner(),
         MultiplyBy2FitTransformCallbackStep(tape3, tape3_fit, ["3"]),
         MultiplyBy2FitTransformCallbackStep(tape4, tape4_fit, ["4"]),
-        Joiner(batch_size=10)
-    ])
+        Joiner()
+    ], batch_size=10)
 
     # When
     p, outputs = p.fit_transform(range(20), range(20))
