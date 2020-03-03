@@ -934,7 +934,8 @@ class BaseStep(ABC):
 
         return data_container
 
-    def _inverse_transform_data_container(self, data_container: DataContainer, context: ExecutionContext) -> DataContainer:
+    def _inverse_transform_data_container(
+            self, data_container: DataContainer, context: ExecutionContext) -> DataContainer:
         processed_outputs = self.inverse_transform(data_container.data_inputs)
         data_container.set_data_inputs(processed_outputs)
 
@@ -1010,7 +1011,8 @@ class BaseStep(ABC):
 
         return new_self
 
-    def handle_fit_transform(self, data_container: DataContainer, context: ExecutionContext) -> ('BaseStep', DataContainer):
+    def handle_fit_transform(self, data_container: DataContainer, context: ExecutionContext) -> (
+            'BaseStep', DataContainer):
         """
         Override this to add side effects or change the execution flow before (or after) calling * :func:`~neuraxle.base.BaseStep.fit_transform`.
         The default behavior is to rehash current ids with the step hyperparameters.
@@ -1046,6 +1048,22 @@ class BaseStep(ABC):
         data_container = self._did_transform(data_container, context)
         data_container = self._did_process(data_container, context)
 
+        return data_container
+
+    def handle_predict(self, data_container: DataContainer, context: ExecutionContext) -> DataContainer:
+        """
+        Handle_transform in test mode.
+
+        :param data_container: the data container to transform
+        :param context: execution context
+        :return: transformed data container
+        """
+        was_train: bool = self.is_train
+        self.set_train(False)
+
+        data_container = self.handle_transform(data_container, context)
+
+        self.set_train(was_train)
         return data_container
 
     def _will_fit(self, data_container: DataContainer, context: ExecutionContext) -> (DataContainer, ExecutionContext):
@@ -1106,7 +1124,8 @@ class BaseStep(ABC):
         """
         return data_container
 
-    def _fit_transform_data_container(self, data_container: DataContainer, context: ExecutionContext) -> ('BaseStep', DataContainer):
+    def _fit_transform_data_container(self, data_container: DataContainer, context: ExecutionContext) -> (
+            'BaseStep', DataContainer):
         """
         Fit transform data container.
 
@@ -1120,7 +1139,8 @@ class BaseStep(ABC):
 
         return new_self, data_container
 
-    def _will_transform_data_container(self, data_container: DataContainer, context: ExecutionContext) -> (DataContainer, ExecutionContext):
+    def _will_transform_data_container(self, data_container: DataContainer, context: ExecutionContext) -> (
+            DataContainer, ExecutionContext):
         """
         Apply side effects before transform.
 
@@ -1131,7 +1151,8 @@ class BaseStep(ABC):
         """
         return data_container, context.push(self)
 
-    def _will_process(self, data_container: DataContainer, context: ExecutionContext) -> (DataContainer, ExecutionContext):
+    def _will_process(self, data_container: DataContainer, context: ExecutionContext) -> (
+            DataContainer, ExecutionContext):
         """
         Apply side effects before any step method.
 
@@ -1272,14 +1293,19 @@ class BaseStep(ABC):
 
     def predict(self, data_input):
         """
-        Predict data input expected output using transform method.
-        This is simply a shorthand method that does the same thing as func:`~.transform`.
+        Predict the expected output in test mode using func:`~.transform`, but by setting self to test mode first and then reverting the mode.
 
         :param data_input: data input to predict
         :return: prediction
         :rtype: Any
         """
-        return self.transform(data_input)
+        was_train: bool = self.is_train
+        self.set_train(False)
+
+        outputs = self.transform(data_input)
+
+        self.set_train(was_train)
+        return outputs
 
     def should_save(self) -> bool:
         """
@@ -1572,6 +1598,14 @@ class BaseStep(ABC):
         return self.__repr__()
 
 
+def _sklearn_to_neuraxle_step(step) -> BaseStep:
+    if isinstance(step, BaseEstimator):
+        import neuraxle.steps.sklearn
+        step = neuraxle.steps.sklearn.SKLearnWrapper(step)
+        step.set_name(step.get_wrapped_sklearn_predictor().__class__.__name__)
+    return step
+
+
 class MetaStepMixin:
     """
     A class to represent a step that wraps another step. It can be used for many things.
@@ -1629,15 +1663,31 @@ class MetaStepMixin:
             self,
             wrapped: BaseStep = None
     ):
-        self.wrapped: BaseStep = wrapped
+        self.wrapped: BaseStep = _sklearn_to_neuraxle_step(wrapped)
+        self._ensure_proper_mixin_init_order()
 
+    def _ensure_proper_mixin_init_order(self):
         if not hasattr(self, 'savers'):
             warnings.warn(
-                'Please initialize Mixins in the good order. MetaStepMixin should be initialized after BaseStep for {}. Appending the MetaStepJoblibStepSaver to the savers.'.format(
+                'Please initialize Mixins in the good order. MetaStepMixin should be initialized after '
+                'BaseStep for {}. Appending the MetaStepJoblibStepSaver to the savers. Saving might fail.'.format(
                     self.wrapped.name))
             self.savers = [MetaStepJoblibStepSaver()]
         else:
             self.savers.append(MetaStepJoblibStepSaver())
+
+    def set_step(self, step: BaseStep) -> BaseStep:
+        """
+        Set wrapped step to the given step.
+
+        :param step: new wrapped step
+        :type step: BaseStep
+        :return: self
+        :rtype: BaseStep
+        """
+        self.is_invalidated = True
+        self.wrapped: BaseStep = _sklearn_to_neuraxle_step(step)
+        return self
 
     def setup(self) -> BaseStep:
         """
@@ -1665,7 +1715,7 @@ class MetaStepMixin:
                 else:
                     self.transform_test_(data_inputs)
 
-            def fit_transform(self, data_inputs, expected_outputs):
+            def fit_transform(self, data_inputs, expected_outputs=None):
                 if self.is_train:
                     self.fit_transform_train_(data_inputs, expected_outputs)
                 else:
@@ -1794,19 +1844,6 @@ class MetaStepMixin:
             self.wrapped.name: self.wrapped.get_hyperparams_space().to_flat_as_dict_primitive()
         }).to_flat()
 
-    def set_step(self, step: BaseStep) -> BaseStep:
-        """
-        Set wrapped step to the given step.
-
-        :param step: new wrapped step
-        :type step: BaseStep
-        :return: self
-        :rtype: BaseStep
-        """
-        self.is_invalidated = True
-        self.wrapped: BaseStep = step
-        return self
-
     def get_step(self) -> BaseStep:
         """
         Get wrapped step
@@ -1835,11 +1872,11 @@ class MetaStepMixin:
         data_container = self.wrapped.handle_inverse_transform(data_container, context)
         return data_container
 
-    def fit_transform(self, data_inputs, expected_outputs):
+    def fit_transform(self, data_inputs, expected_outputs=None):
         self.wrapped, data_inputs = self.wrapped.fit_transform(data_inputs, expected_outputs)
         return self, data_inputs
 
-    def fit(self, data_inputs, expected_outputs):
+    def fit(self, data_inputs, expected_outputs=None):
         self.wrapped = self.wrapped.fit(data_inputs, expected_outputs)
         return self
 
@@ -2333,10 +2370,7 @@ class TruncableSteps(BaseStep, ABC):
                 class_name = step[0]
                 step = step[1]
 
-            if isinstance(step, BaseEstimator):
-                import neuraxle.steps.sklearn
-                step = neuraxle.steps.sklearn.SKLearnWrapper(step)
-                step.set_name(step.get_wrapped_sklearn_predictor().__class__.__name__)
+            step = _sklearn_to_neuraxle_step(step)
 
             if class_name is None:
                 class_name = step.get_name()
@@ -3025,7 +3059,9 @@ class HandleOnlyMixin:
     """
 
     @abstractmethod
-    def _fit_data_container(self, data_container: DataContainer, context: ExecutionContext) -> ('BaseStep', DataContainer):
+    def _fit_data_container(
+            self, data_container: DataContainer, context: ExecutionContext
+    ) -> ('BaseStep', DataContainer):
         raise NotImplementedError('Must implement _fit_data_container in {0}'.format(self.name))
 
     @abstractmethod
@@ -3033,8 +3069,9 @@ class HandleOnlyMixin:
         raise NotImplementedError('Must implement _transform_data_container in {0}'.format(self.name))
 
     @abstractmethod
-    def _fit_transform_data_container(self, data_container: DataContainer, context: ExecutionContext) -> (
-            'BaseStep', DataContainer):
+    def _fit_transform_data_container(
+            self, data_container: DataContainer, context: ExecutionContext
+    ) -> ('BaseStep', DataContainer):
         raise NotImplementedError('Must implement handle_fit_transform in {0}'.format(self.name))
 
     def transform(self, data_inputs) -> 'HandleOnlyMixin':
@@ -3065,6 +3102,7 @@ class ForceHandleMixin:
         :class:`NonFittableMixin`,
         :class:`ForceHandleOnlyMixin`
     """
+
     def __init__(self, cache_folder=None):
         if cache_folder is None:
             cache_folder = DEFAULT_CACHE_FOLDER
@@ -3072,7 +3110,8 @@ class ForceHandleMixin:
 
     def transform(self, data_inputs):
         execution_context = ExecutionContext(self.cache_folder, execution_mode=ExecutionMode.TRANSFORM)
-        context, data_container = self._encapsulate_data(data_inputs, expected_outputs=None, execution_mode=ExecutionMode.TRANSFORM)
+        context, data_container = self._encapsulate_data(
+            data_inputs, expected_outputs=None, execution_mode=ExecutionMode.TRANSFORM)
 
         data_container = self.handle_transform(data_container, execution_context)
 
@@ -3113,6 +3152,7 @@ class ForceHandleOnlyMixin(ForceHandleMixin, HandleOnlyMixin):
         :class:`NonFittableMixin`,
         :class:`ForceHandleMixin`
     """
+
     def __init__(self, cache_folder=None):
         HandleOnlyMixin.__init__(self)
         ForceHandleMixin.__init__(self, cache_folder)
@@ -3125,6 +3165,7 @@ class EvaluableStepMixin:
     .. seealso::
         :class:`BaseStep`
     """
+
     @abstractmethod
     def get_score(self):
         raise NotImplementedError()
