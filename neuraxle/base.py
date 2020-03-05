@@ -436,17 +436,18 @@ class ExecutionContext:
         if not os.path.exists(path):
             os.makedirs(path)
 
-    def get_path(self, with_root=True):
+    def get_path(self, is_absolute: bool = True):
         """
         Creates the directory path for the current execution context.
 
+        :param is_absolute: bool to say if we want to add root to the path or not
         :return: current context path
         :rtype: str
         """
-        parents_with_path = [self.root] if with_root else []
+        parents_with_path = [self.root] if is_absolute else []
         parents_with_path += [p.name for p in self.parents]
         if len(parents_with_path) == 0:
-            return '/'
+            return '.' + os.sep
         return os.path.join(*parents_with_path)
 
     def get_names(self):
@@ -618,7 +619,7 @@ class BaseStep(ABC):
 
         self.pending_mutate: ('BaseStep', str, str) = (None, None, None)
         self.is_initialized = False
-        self.is_invalidated = True
+        self.invalidate()
         self.is_train: bool = True
 
     def summary_hash(self, data_container: DataContainer) -> str:
@@ -723,7 +724,7 @@ class BaseStep(ABC):
             A step name is the same value as the one in the keys of :any:`~neuraxle.pipeline.Pipeline.steps_as_tuple`
         """
         self.name = name
-        self.is_invalidated = True
+        self.invalidate()
         return self
 
     def get_name(self) -> str:
@@ -781,7 +782,7 @@ class BaseStep(ABC):
         .. seealso::
             :class:`neuraxle.hyperparams.space.HyperparameterSamples`
         """
-        self.is_invalidated = True
+        self.invalidate()
         self.hyperparams = HyperparameterSamples(hyperparams).to_flat()
         return self
 
@@ -892,7 +893,7 @@ class BaseStep(ABC):
             :class:`neuraxle.hyperparams.space.HyperparameterSpace`,
             :class:`neuraxle.hyperparams.distributions.HyperparameterDistribution`
         """
-        self.is_invalidated = True
+        self.invalidate()
         self.hyperparams_space = HyperparameterSpace(hyperparams_space).to_flat()
         return self
 
@@ -1075,7 +1076,7 @@ class BaseStep(ABC):
         :return: (data container, execution context)
         :rtype: (DataContainer, ExecutionContext)
         """
-        self.is_invalidated = True
+        self.invalidate()
         return data_container, context.push(self)
 
     def _did_fit(self, data_container: DataContainer, context: ExecutionContext) -> DataContainer:
@@ -1110,7 +1111,7 @@ class BaseStep(ABC):
         :return: (data container, execution context)
         :rtype: (DataContainer, ExecutionContext)
         """
-        self.is_invalidated = True
+        self.invalidate()
         return data_container, context.push(self)
 
     def _did_fit_transform(self, data_container: DataContainer, context: ExecutionContext) -> DataContainer:
@@ -1233,7 +1234,7 @@ class BaseStep(ABC):
         :return: (fitted self, tranformed data inputs)
         :rtype: Tuple[BaseStep, Any]
         """
-        self.is_invalidated = True
+        self.invalidate()
 
         new_self = self.fit(data_inputs, expected_outputs)
         out = new_self.transform(data_inputs)
@@ -1347,14 +1348,19 @@ class BaseStep(ABC):
         """
         context = context.push(self)
 
+        def _initialize_if_needed(step):
+            if not step.is_initialized:
+                step.setup()
+            return step
+
+        def _invalidate(step):
+            step.invalidate()
+
         if full_dump:
             # initialize and invalidate steps to make sure that all steps will be saved
-            self.apply_method(lambda step: step.setup() if not step.is_initialized else None)
-            self.apply_method(lambda step: step.invalidate())
+            self.apply_method(_initialize_if_needed)
+            self.apply_method(_invalidate)
 
-        return self._save_step(context)
-
-    def _save_step(self, context):
         context.mkdir()
         stripped_step = copy(self)
 
@@ -1441,7 +1447,7 @@ class BaseStep(ABC):
         :param warn: (verbose) wheter or not to warn about the inexistence of the method.
         :return: self, a copy of self, or even perhaps a new or different BaseStep object.
         """
-        self.is_invalidated = True
+        self.invalidate()
         pending_new_base_step, pending_new_method, pending_method_to_assign_to = self.pending_mutate
 
         # Use everything that is pending if they are not none (ternaries).
@@ -1462,7 +1468,7 @@ class BaseStep(ABC):
 
             # 3. assign new method to old method
             setattr(new_base_step, method_to_assign_to, new_method)
-            self.is_invalidated = True
+            self.invalidate()
 
         except AttributeError as e:
             if warn:
@@ -1510,7 +1516,7 @@ class BaseStep(ABC):
         :return: self
         :rtype: BaseStep
         """
-        self.is_invalidated = True
+        self.invalidate()
 
         if new_method is None or method_to_assign_to is None:
             new_method = method_to_assign_to = "transform"  # No changes will be applied (transform will stay transform).
@@ -1685,7 +1691,7 @@ class MetaStepMixin:
         :return: self
         :rtype: BaseStep
         """
-        self.is_invalidated = True
+        self.invalidate()
         self.wrapped: BaseStep = _sklearn_to_neuraxle_step(step)
         return self
 
@@ -1749,7 +1755,7 @@ class MetaStepMixin:
         .. seealso::
             :class:`HyperparameterSamples`
         """
-        self.is_invalidated = True
+        self.invalidate()
 
         hyperparams: HyperparameterSamples = HyperparameterSamples(hyperparams).to_nested_dict()
 
@@ -1778,7 +1784,7 @@ class MetaStepMixin:
             :func:`~BaseStep.update_hyperparams`,
             :class:`HyperparameterSamples`
         """
-        self.is_invalidated = True
+        self.invalidate()
 
         hyperparams: HyperparameterSamples = HyperparameterSamples(hyperparams).to_nested_dict()
 
@@ -1817,7 +1823,7 @@ class MetaStepMixin:
 
         :return: self
         """
-        self.is_invalidated = True
+        self.invalidate()
 
         hyperparams_space: HyperparameterSpace = HyperparameterSpace(hyperparams_space).to_nested_dict()
 
@@ -2402,7 +2408,7 @@ class TruncableSteps(BaseStep, ABC):
             step = (_name, step)
             names_yet.add(step[0])
             patched.append(step)
-        self.is_invalidated = True
+        self.invalidate()
         return patched
 
     def _rename_step(self, step_name, class_name, names_yet: set):
@@ -2424,7 +2430,7 @@ class TruncableSteps(BaseStep, ABC):
         while step_name in names_yet:
             step_name = class_name + str(i)
             i += 1
-        self.is_invalidated = True
+        self.invalidate()
         return step_name
 
     def _refresh_steps(self):
@@ -2432,7 +2438,7 @@ class TruncableSteps(BaseStep, ABC):
         Private method to refresh inner state after having edited ``self.steps_as_tuple``
         (recreate ``self.steps`` from ``self.steps_as_tuple``).
         """
-        self.is_invalidated = True
+        self.invalidate()
         self.steps: OrderedDict = OrderedDict(self.steps_as_tuple)
         for name, step in self.items():
             step.name = name
@@ -2497,7 +2503,7 @@ class TruncableSteps(BaseStep, ABC):
         .. seealso::
             :class:`HyperparameterSamples`
         """
-        self.is_invalidated = True
+        self.invalidate()
 
         hyperparams: HyperparameterSamples = HyperparameterSamples(hyperparams).to_nested_dict()
 
@@ -2525,7 +2531,7 @@ class TruncableSteps(BaseStep, ABC):
             :func:`~BaseStep.update_hyperparams`,
             :class:`HyperparameterSamples`
         """
-        self.is_invalidated = True
+        self.invalidate()
 
         hyperparams: HyperparameterSamples = HyperparameterSamples(hyperparams).to_nested_dict()
 
@@ -2596,7 +2602,7 @@ class TruncableSteps(BaseStep, ABC):
         .. seealso::
             :class:`HyperparameterSpace`
         """
-        self.is_invalidated = True
+        self.invalidate()
 
         hyperparams_space: HyperparameterSpace = HyperparameterSpace(hyperparams_space).to_nested_dict()
 
