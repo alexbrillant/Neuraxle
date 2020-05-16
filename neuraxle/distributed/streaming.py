@@ -47,10 +47,21 @@ class ObservableQueueMixin:
         :class:`SequentialQueuedPipeline`
     """
 
-    def __init__(self, queue):
+    def __init__(self, queue=None, max_size=None):
+        self.max_size = max_size
         self.queue = queue
         self.observers = []
+
         self._ensure_proper_mixin_init_order()
+
+    def setup(self):
+        if self.max_size is not None:
+            self.queue = Queue(maxsize=self.max_size)
+        else:
+            self.queue = Queue()
+
+    def teardown(self):
+        self.queue = None
 
     def _ensure_proper_mixin_init_order(self):
         if not hasattr(self, 'savers'):
@@ -159,7 +170,7 @@ class QueueWorker(ObservableQueueMixin, MetaStepMixin, BaseStep):
 
         BaseStep.__init__(self)
         MetaStepMixin.__init__(self, wrapped)
-        ObservableQueueMixin.__init__(self, Queue(maxsize=max_queue_size))
+        ObservableQueueMixin.__init__(self, max_size=max_queue_size)
 
         self.use_threading: bool = use_threading
         self.workers: List[Process] = []
@@ -228,11 +239,14 @@ def worker_function(queue_worker: QueueWorker, context: ExecutionContext, use_sa
         step.__dict__.update({argument_name: argument_value})
 
     while True:
-        task: QueuedPipelineTask = queue_worker.get()
-        summary_id = task.data_container.summary_id
-        data_container = step.handle_transform(task.data_container, context)
-        data_container = data_container.set_summary_id(summary_id)
-        queue_worker.notify(QueuedPipelineTask(step_name=queue_worker.name, data_container=data_container))
+        try:
+            task: QueuedPipelineTask = queue_worker.get()
+            summary_id = task.data_container.summary_id
+            data_container = step.handle_transform(task.data_container, context)
+            data_container = data_container.set_summary_id(summary_id)
+            queue_worker.notify(QueuedPipelineTask(step_name=queue_worker.name, data_container=data_container))
+        except Exception as err:
+            print(err)
 
 
 QueuedPipelineStepsTuple = Union[
@@ -319,8 +333,12 @@ class BaseQueuedPipeline(MiniBatchSequentialPipeline):
         self.use_threading = use_threading
         self.use_savers = use_savers
 
-        MiniBatchSequentialPipeline.__init__(self, steps=self._initialize_steps_as_tuple(steps),
-                                             cache_folder=cache_folder)
+        MiniBatchSequentialPipeline.__init__(
+            self,
+            steps=self._initialize_steps_as_tuple(steps),
+            cache_folder=cache_folder
+        )
+
         self._refresh_steps()
 
     def _initialize_steps_as_tuple(self, steps):
@@ -404,6 +422,8 @@ class BaseQueuedPipeline(MiniBatchSequentialPipeline):
         :rtype: BaseStep
         """
         if not self.is_initialized:
+            for i in range(len(self)):
+               self[i].setup()
             self.connect_queued_pipeline()
         self.is_initialized = True
         return self
@@ -614,7 +634,11 @@ class QueueJoiner(ObservableQueueMixin, Joiner):
         self.summary_ids = []
         self.result = {}
         Joiner.__init__(self, batch_size=batch_size)
-        ObservableQueueMixin.__init__(self, Queue())
+        ObservableQueueMixin.__init__(self)
+
+    def setup(self) -> 'BaseStep':
+        BaseStep.setup(self)
+        ObservableQueueMixin.setup(self)
 
     def set_n_batches(self, n_batches):
         self.n_batches_left_to_do = n_batches
