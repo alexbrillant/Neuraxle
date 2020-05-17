@@ -178,6 +178,7 @@ class QueueWorker(ObservableQueueMixin, MetaStepMixin, BaseStep):
         self.observers: List[Queue] = []
         self.additional_worker_arguments = additional_worker_arguments
         self.use_savers = use_savers
+        self.is_initialized = True
 
     def start(self, context: ExecutionContext):
         """

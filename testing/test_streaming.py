@@ -66,6 +66,7 @@ def test_queued_pipeline_with_n_workers_step():
 
     assert np.array_equal(outputs, EXPECTED_OUTPUTS)
 
+
 def test_queued_pipeline_with_step_name_n_worker_max_queue_size():
     p = SequentialQueuedPipeline([
         ('1', 1, 5, MultiplyByN(2)),
@@ -280,6 +281,80 @@ def test_queued_pipeline_saving(tmpdir):
     assert len(p[3].wrapped.fit_callback_function.data) == 10
 
 
+def test_parallel_queued_pipeline_full_dump_saving(tmpdir):
+    # Given
+    p = ParallelQueuedFeatureUnion([
+        ('1', FitTransformCallbackStep()),
+        ('2', FitTransformCallbackStep()),
+        ('3', FitTransformCallbackStep()),
+        ('4', FitTransformCallbackStep()),
+    ], n_workers_per_step=1, max_queue_size=10, batch_size=10)
+
+    # When
+    p, outputs = p.fit_transform(list(range(100)), list(range(100)))
+    p.save(ExecutionContext(tmpdir), full_dump=True)
+    p.apply('clear_callbacks')
+
+    # Then
+
+    assert len(p[0].wrapped.transform_callback_function.data) == 0
+    assert len(p[0].wrapped.fit_callback_function.data) == 0
+    assert len(p[1].wrapped.transform_callback_function.data) == 0
+    assert len(p[1].wrapped.fit_callback_function.data) == 0
+    assert len(p[2].wrapped.transform_callback_function.data) == 0
+    assert len(p[2].wrapped.fit_callback_function.data) == 0
+    assert len(p[3].wrapped.transform_callback_function.data) == 0
+    assert len(p[3].wrapped.fit_callback_function.data) == 0
+
+    p: ParallelQueuedFeatureUnion = ExecutionContext(tmpdir).load('ParallelQueuedFeatureUnion')
+
+    assert len(p[0].wrapped.transform_callback_function.data) == 10
+    assert len(p[0].wrapped.fit_callback_function.data) == 10
+    assert len(p[1].wrapped.transform_callback_function.data) == 10
+    assert len(p[1].wrapped.fit_callback_function.data) == 10
+    assert len(p[2].wrapped.transform_callback_function.data) == 10
+    assert len(p[2].wrapped.fit_callback_function.data) == 10
+    assert len(p[3].wrapped.transform_callback_function.data) == 10
+    assert len(p[3].wrapped.fit_callback_function.data) == 10
+
+
+def test_sequential_queued_pipeline_full_dump_saving(tmpdir):
+    # Given
+    p = SequentialQueuedPipeline([
+        ('1', FitTransformCallbackStep()),
+        ('2', FitTransformCallbackStep()),
+        ('3', FitTransformCallbackStep()),
+        ('4', FitTransformCallbackStep()),
+    ], n_workers_per_step=1, max_queue_size=10, batch_size=10)
+
+    # When
+    p, outputs = p.fit_transform(list(range(100)), list(range(100)))
+    p.save(ExecutionContext(tmpdir), full_dump=True)
+    p.apply('clear_callbacks')
+
+    # Then
+
+    assert len(p[0].wrapped.transform_callback_function.data) == 0
+    assert len(p[0].wrapped.fit_callback_function.data) == 0
+    assert len(p[1].wrapped.transform_callback_function.data) == 0
+    assert len(p[1].wrapped.fit_callback_function.data) == 0
+    assert len(p[2].wrapped.transform_callback_function.data) == 0
+    assert len(p[2].wrapped.fit_callback_function.data) == 0
+    assert len(p[3].wrapped.transform_callback_function.data) == 0
+    assert len(p[3].wrapped.fit_callback_function.data) == 0
+
+    p: SequentialQueuedPipeline = ExecutionContext(tmpdir).load('SequentialQueuedPipeline')
+
+    assert len(p[0].wrapped.transform_callback_function.data) == 10
+    assert len(p[0].wrapped.fit_callback_function.data) == 10
+    assert len(p[1].wrapped.transform_callback_function.data) == 10
+    assert len(p[1].wrapped.fit_callback_function.data) == 10
+    assert len(p[2].wrapped.transform_callback_function.data) == 10
+    assert len(p[2].wrapped.fit_callback_function.data) == 10
+    assert len(p[3].wrapped.transform_callback_function.data) == 10
+    assert len(p[3].wrapped.fit_callback_function.data) == 10
+
+
 def test_queued_pipeline_with_savers(tmpdir):
     # Given
 
@@ -344,3 +419,31 @@ def test_sequential_queued_pipeline_should_fit_transform_without_multiprocessing
 
     assert not p[-1].called_queue_joiner
     assert np.array_equal(outputs, EXPECTED_OUTPUTS)
+
+
+def test_parallel_queued_pipeline_should_be_callable_repeatedly():
+    for i in range(3):
+        p = ParallelQueuedFeatureUnion([
+            ('1', 1, 5, MultiplyByN(2)),
+            ('2', 1, 5, MultiplyByN(2)),
+            ('3', 1, 5, MultiplyByN(2)),
+            ('4', 1, 5, MultiplyByN(2))
+        ], batch_size=10)
+
+        outputs = p.transform(list(range(100)))
+
+        assert np.array_equal(outputs, EXPECTED_OUTPUTS_PARALLEL)
+
+
+def test_sequential_queued_pipeline_should_be_callable_repeatedly():
+    for i in range(3):
+        p = SequentialQueuedPipeline([
+            ('1', MultiplyByN(2)),
+            ('2', MultiplyByN(2)),
+            ('3', MultiplyByN(2)),
+            ('4', MultiplyByN(2))
+        ], n_workers_per_step=1, max_queue_size=10, batch_size=10)
+
+        outputs = p.transform(list(range(100)))
+
+        assert np.array_equal(outputs, EXPECTED_OUTPUTS)
