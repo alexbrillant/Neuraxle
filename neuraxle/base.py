@@ -37,7 +37,6 @@ from enum import Enum
 from typing import List, Union, Any, Iterable, KeysView, ItemsView, ValuesView, Callable, Dict, Tuple
 
 from joblib import dump, load
-from sklearn.base import BaseEstimator
 
 from neuraxle.data_container import DataContainer
 from neuraxle.hyperparams.space import HyperparameterSpace, HyperparameterSamples, RecursiveDict
@@ -2026,7 +2025,7 @@ class BaseTransformer(
 
 
 def _sklearn_to_neuraxle_step(step) -> BaseTransformer:
-    if isinstance(step, BaseEstimator):
+    if step.__class__.name == 'BaseEstimator':
         import neuraxle.steps.sklearn
         step = neuraxle.steps.sklearn.SKLearnWrapper(step)
         step.set_name(step.get_wrapped_sklearn_predictor().__class__.__name__)

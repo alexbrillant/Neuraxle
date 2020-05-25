@@ -27,6 +27,7 @@ This demonstrates an easy way to deploy your Neuraxle model or pipeline to a RES
 
 import numpy as np
 from flask import Flask
+# don't use sklearn in the rest api serving tests
 from sklearn.cluster import KMeans
 from sklearn.datasets import load_boston
 from sklearn.decomposition import PCA, FastICA

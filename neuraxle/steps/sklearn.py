@@ -26,7 +26,7 @@ Those steps works with scikit-learn (sklearn) transformers and estimators.
 import inspect
 from typing import Any
 
-from sklearn.base import BaseEstimator
+# to be moved to Neuraxle-SKLearn ? (See ModelStacking step below)
 from sklearn.linear_model import Ridge
 
 from neuraxle.base import BaseStep
@@ -43,7 +43,7 @@ class SKLearnWrapper(BaseStep):
             hyperparams_space: HyperparameterSpace = None,
             return_all_sklearn_default_params_on_get=False
     ):
-        if not isinstance(wrapped_sklearn_predictor, BaseEstimator):
+        if not wrapped_sklearn_predictor.__class__.name == 'BaseEstimator':
             raise ValueError("The wrapped_sklearn_predictor must be an instance of scikit-learn's BaseEstimator.")
         self.wrapped_sklearn_predictor = wrapped_sklearn_predictor
         params: HyperparameterSamples = HyperparameterSamples(wrapped_sklearn_predictor.get_params())
@@ -114,6 +114,7 @@ class SKLearnWrapper(BaseStep):
         return "<{}.{}({}(...)) object {}>".format(module, qualname, wrappedname, hex(id(self)))
 
 
+# to be moved to Neuraxle-SKLearn ?
 class RidgeModelStacking(ModelStacking):
     def __init__(self, brothers):
         ModelStacking.__init__(

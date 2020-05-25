@@ -1,6 +1,7 @@
 import math
 
 import numpy as np
+# don't use a linear model from sklearn here
 from sklearn import linear_model
 from sklearn.metrics import mean_squared_error
 

@@ -1,4 +1,5 @@
 import numpy as np
+# use non sklearn steps for testing here
 from sklearn.cluster import KMeans
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.linear_model import Ridge

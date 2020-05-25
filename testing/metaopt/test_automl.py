@@ -1,4 +1,5 @@
 import numpy as np
+# can our test use sklearn ?
 from sklearn.preprocessing import StandardScaler
 from sklearn import linear_model
 from sklearn.metrics import mean_squared_error

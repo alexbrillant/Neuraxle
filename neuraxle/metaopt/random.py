@@ -29,6 +29,7 @@ from abc import ABC, abstractmethod
 from typing import List, Callable, Tuple
 
 import numpy as np
+# code our own default score instead ?
 from sklearn.metrics import r2_score
 
 from neuraxle.base import MetaStep, BaseStep, ExecutionContext, HandleOnlyMixin, ForceHandleOnlyMixin, \

@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+# move to Neuraxle-SKLearn
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LinearRegression
 
