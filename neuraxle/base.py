@@ -756,7 +756,7 @@ class _TransformerStep(ABC):
         :param context: execution context
         :return: (data container, execution context)
         """
-        return data_container, context
+        return data_container.copy(), context
 
     def handle_transform(self, data_container: DataContainer, context: ExecutionContext) -> DataContainer:
         """
