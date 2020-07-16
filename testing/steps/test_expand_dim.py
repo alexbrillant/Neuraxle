@@ -58,13 +58,11 @@ def test_expand_dim_fit():
     handle_transform_callback = TapeCallbackFunction()
     handle_fit_transform_callback = TapeCallbackFunction()
     p = Pipeline([
-        ExpandDim(
-            HandleCallbackStep(
-                handle_fit_callback,
-                handle_transform_callback,
-                handle_fit_transform_callback
-            )
-        )
+        ExpandDim(HandleCallbackStep(
+            handle_fit_callback,
+            handle_transform_callback,
+            handle_fit_transform_callback
+        ))
     ])
     p['ExpandDim'].hashers = [SomeSummaryHasher(fake_summary_id=SUMMARY_ID)]
 

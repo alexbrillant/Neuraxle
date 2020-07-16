@@ -23,6 +23,7 @@ Classes for containing the data that flows throught the pipeline steps.
     project, visit https://www.umaneo.com/ for more information on Umaneo Technologies Inc.
 
 """
+import copy
 import hashlib
 import math
 from typing import Any, Iterable, List, Tuple, Union
@@ -345,6 +346,15 @@ class ExpandedDataContainer(DataContainer):
             summary_id=self.summary_id,
             expected_outputs=self.expected_outputs[0],
             sub_data_containers=self.sub_data_containers
+        )
+
+    def copy(self):
+        return ExpandedDataContainer(
+            data_inputs=self.data_inputs,
+            current_ids=self.current_ids,
+            old_current_ids=self.old_current_ids,
+            summary_id=self.summary_id,
+            expected_outputs=self.expected_outputs
         )
 
     @staticmethod
