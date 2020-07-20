@@ -42,7 +42,13 @@ class SKLearnWrapper(BaseStep):
             wrapped_sklearn_predictor,
             hyperparams_space: HyperparameterSpace = None,
             return_all_sklearn_default_params_on_get: bool = False,
-            use_partial_fit: bool = False
+            use_partial_fit: bool = False,
+            use_predict_proba: bool = False,
+            use_decision_function: bool = False,
+            use_predict_log_proba: bool = False,
+            use_score: bool = False,
+            transform_args: dict = None,
+            fit_args: dict = None
     ):
         if not isinstance(wrapped_sklearn_predictor, BaseEstimator):
             raise ValueError("The wrapped_sklearn_predictor must be an instance of scikit-learn's BaseEstimator.")
@@ -51,57 +57,86 @@ class SKLearnWrapper(BaseStep):
         BaseStep.__init__(self, hyperparams=params, hyperparams_space=hyperparams_space)
         self.return_all_sklearn_default_params_on_get = return_all_sklearn_default_params_on_get
         self.name += "_" + wrapped_sklearn_predictor.__class__.__name__
-        self.partial_fit: bool = use_partial_fit
+
+        self.use_score: bool = use_score
+        self.use_predict_log_proba: bool = use_predict_log_proba
+        self.use_decision_function: bool = use_decision_function
+        self.use_partial_fit: bool = use_partial_fit
+        self.use_predict_proba: bool = use_predict_proba
+
+        if transform_args is None:
+            transform_args = dict()
+        if fit_args is None:
+            fit_args = dict()
+
+        self.transform_args = transform_args
+        self.fit_args = fit_args
+
+        if use_score:
+            self.mutate(new_method='score', method_to_assign_to='fit_transform')
+
+        if use_partial_fit:
+            self.mutate(new_method='partial_fit', method_to_assign_to='fit')
+            self.mutate(new_method='partial_fit_transform', method_to_assign_to='fit_transform')
+
+        if use_predict_proba:
+            self.mutate(new_method='predict_proba', method_to_assign_to='transform')
+
+        if use_predict_log_proba:
+            self.mutate(new_method='predict_log_proba', method_to_assign_to='transform')
+
+        if use_decision_function:
+            self.mutate(new_method='predict_log_proba', method_to_assign_to='transform')
+
 
     def fit_transform(self, data_inputs, expected_outputs=None) -> ('BaseStep', Any):
-
         if hasattr(self.wrapped_sklearn_predictor, 'fit_transform'):
             if expected_outputs is None or len(inspect.getfullargspec(self.wrapped_sklearn_predictor.fit).args) < 3:
-                out = self._sklearn_fit_transform_without_expected_outputs(data_inputs)
+                out = self.wrapped_sklearn_predictor.fit_transform(data_inputs)
             else:
-                out = self._sklearn_fit_transform_with_expected_outputs(data_inputs, expected_outputs)
+                out = self.wrapped_sklearn_predictor.fit_transform(data_inputs, expected_outputs)
             return self, out
 
         self.fit(data_inputs, expected_outputs)
-
-        if hasattr(self.wrapped_sklearn_predictor, 'predict'):
-            return self, self.wrapped_sklearn_predictor.predict(data_inputs)
-        return self, self.wrapped_sklearn_predictor.transform(data_inputs)
-
-    def _sklearn_fit_transform_with_expected_outputs(self, data_inputs, expected_outputs):
-        if self.partial_fit:
-            self.wrapped_sklearn_predictor = self.wrapped_sklearn_predictor.partial_fit(data_inputs, expected_outputs)
-            out = self.wrapped_sklearn_predictor.transform(data_inputs)
-        else:
-            out = self.wrapped_sklearn_predictor.fit_transform(data_inputs, expected_outputs)
-        return out
-
-    def _sklearn_fit_transform_without_expected_outputs(self, data_inputs):
-        if self.partial_fit:
-            self.wrapped_sklearn_predictor = self.wrapped_sklearn_predictor.partial_fit(data_inputs)
-            out = self.wrapped_sklearn_predictor.transform(data_inputs)
-        else:
-            out = self.wrapped_sklearn_predictor.fit_transform(data_inputs)
-        return out
+        return self, self.transform(data_inputs)
 
     def fit(self, data_inputs, expected_outputs=None) -> 'SKLearnWrapper':
         if expected_outputs is None or len(inspect.getfullargspec(self.wrapped_sklearn_predictor.fit).args) < 3:
-            self._sklearn_fit_without_expected_outputs(data_inputs)
+            self.wrapped_sklearn_predictor.fit(data_inputs)
         else:
-            self._sklearn_fit_with_expected_outputs(data_inputs, expected_outputs)
+            self.wrapped_sklearn_predictor.fit(data_inputs, expected_outputs)
         return self
 
-    def _sklearn_fit_with_expected_outputs(self, data_inputs, expected_outputs):
-        if self.partial_fit:
-            self.wrapped_sklearn_predictor = self.wrapped_sklearn_predictor.partial_fit(data_inputs, expected_outputs)
+    def partial_fit(self, data_inputs, expected_outputs=None, **kwargs):
+        if expected_outputs is None or len(inspect.getfullargspec(self.wrapped_sklearn_predictor.fit).args) < 3:
+            self.wrapped_sklearn_predictor.partial_fit(data_inputs, **kwargs, **self.fit_args)
         else:
-            self.wrapped_sklearn_predictor = self.wrapped_sklearn_predictor.fit(data_inputs, expected_outputs)
+            self.wrapped_sklearn_predictor.partial_fit(data_inputs, expected_outputs, **kwargs, **self.fit_args)
+        return self
 
-    def _sklearn_fit_without_expected_outputs(self, data_inputs):
-        if self.partial_fit:
-            self.wrapped_sklearn_predictor = self.wrapped_sklearn_predictor.partial_fit(data_inputs)
+    def partial_fit_transform(self, data_inputs, expected_outputs=None):
+        if expected_outputs is None or len(inspect.getfullargspec(self.wrapped_sklearn_predictor.fit).args) < 3:
+            self.wrapped_sklearn_predictor.partial_fit(data_inputs)
         else:
-            self.wrapped_sklearn_predictor = self.wrapped_sklearn_predictor.fit(data_inputs)
+            self.wrapped_sklearn_predictor.partial_fit(data_inputs, expected_outputs)
+        return self.transform(data_inputs)
+
+    def predict_proba(self, data_inputs):
+        return self.wrapped_sklearn_predictor.predict_proba(data_inputs)
+
+    def predict_log_proba(self, data_inputs):
+        return self.wrapped_sklearn_predictor.predict_proba(data_inputs)
+
+    def score(self, data_inputs, expected_outputs):
+        return self.wrapped_sklearn_predictor.score(data_inputs, expected_outputs)
+
+    def sparsify(self):
+        self.wrapped_sklearn_predictor.sparsify()
+        return self
+
+    def densify(self):
+        self.wrapped_sklearn_predictor.densify()
+        return self
 
     def transform(self, data_inputs):
         if hasattr(self.wrapped_sklearn_predictor, 'predict'):
